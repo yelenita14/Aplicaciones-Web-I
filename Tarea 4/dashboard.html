@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ULEAM</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html" class="active">Dashboard</a></li>
+                <li><a href="estudiantes.html">Estudiantes</a></li>
+                <li><a href="asistencias.html">Asistencias</a></li>
+                <li><a href="materias.html">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Docente: Juan Pérez</p>
+                <button class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Panel de Control</h1>
+                <div class="date-info">
+                    <span id="currentDate"></span>
+                </div>
+            </header>
+            
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-icon students-icon">👨‍🎓</div>
+                    <div class="card-content">
+                        <h3>Estudiantes Registrados</h3>
+                        <p class="card-number">250</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon present-icon">✓</div>
+                    <div class="card-content">
+                        <h3>Asistencias Hoy</h3>
+                        <p class="card-number">198</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon absent-icon">✗</div>
+                    <div class="card-content">
+                        <h3>Inasistencias</h3>
+                        <p class="card-number">52</p>
+                    </div>
+                </div>
+        
+            </div>
+        </main>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

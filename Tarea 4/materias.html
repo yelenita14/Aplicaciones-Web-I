@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materias - ULEAM</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="estudiantes.html">Estudiantes</a></li>
+                <li><a href="asistencias.html">Asistencias</a></li>
+                <li><a href="materias.html" class="active">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Profesor: Juan Pérez</p>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Gestión de Materias</h1>
+                <button class="btn-primary" onclick="mostrarModalMateria()">+ Nueva Materia</button>
+            </header>
+            
+            <div class="filters">
+                <input type="text" id="searchMateria" placeholder="Buscar materia...">
+                <select id="filterNivel">
+                    <option value="">Todos los niveles</option>
+                    <option value="1">Nivel 1</option>
+                    <option value="2">Nivel 2</option>
+                    <option value="3">Nivel 3</option>
+                    <option value="4">Nivel 4</option>
+                    <option value="5">Nivel 5</option>
+                    <option value="6">Nivel 6</option>
+                    <option value="7">Nivel 7</option>
+                    <option value="8">Nivel 8</option>
+                    <option value="9">Nivel 9</option>  
+                </select>
+                <button class="btn-primary">Buscar</button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Materia</th>
+                            <th>Docente</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="materiaTableBody">
+                        <tr>
+                            <td>MAT-001</td>
+                            <td>Programación Web</td>
+                            <td>Juan Pérez</td>
+                            <td>
+                                <button class="btn-edit" onclick="editarMateria('MAT-001')">Editar</button>
+                                <button class="btn-delete" onclick="eliminarMateria('MAT-001')">Eliminar</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

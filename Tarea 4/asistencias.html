@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistencias - ULEAM</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="estudiantes.html">Estudiantes</a></li>
+                <li><a href="asistencias.html" class="active">Asistencias</a></li>
+                <li><a href="materias.html">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Docente: Juan Pérez</p>
+                <button class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Control de Asistencias</h1>
+            </header>
+            <form id="formAsistencia">
+                <div class="attendance-controls">
+                    <div class="form-group">
+                        <label for="materiaAsistencia">Materia:</label>
+                        <select id="materiaAsistencia" class="select-styled" required>
+                            <option value="">Seleccione una materia</option>
+                            <option value="prog-web">Programación Web</option>
+                            <option value="base-datos">Base de Datos</option>
+                            <option value="redes">Redes de Computadoras</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="fechaAsistencia">Fecha:</label>
+                        <input type="date" id="fechaAsistencia" class="input-styled" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary btn-cargar">Registrar Asistencia</button>
+                </div>
+            </form>
+            
+            <div class="attendance-list">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Matrícula</th>
+                            <th>Estudiante</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr>
+                            <td>2025-1</td>
+                            <td>Maria Jose Lopez</td>
+                            <td>
+                                <select class="status-select presente">
+                                    <option value="presente" selected>Presente</option>
+                                    <option value="ausente">Ausente</option>
+                                    <option value="justificado">Justificado</option>
+                                </select>
+                            </td>
+                            <td>
+                                <button class="btn-edit">Ver Detalle</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

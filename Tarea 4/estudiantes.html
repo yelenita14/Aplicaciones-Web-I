@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudiantes - ULEAM</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="estudiantes.html" class="active">Estudiantes</a></li>
+                <li><a href="asistencias.html">Asistencias</a></li>
+                <li><a href="materias.html">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Profesor: Juan Pérez</p>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Gestión de Estudiantes</h1>
+                <button class="btn-primary" onclick="mostrarModalEstudiante()">+ Nuevo Estudiante</button>
+            </header>
+            
+            <div class="filters">
+                <input type="text" id="searchStudent" placeholder="Buscar estudiante...">
+                <select id="filterCarrera">
+                    <option value="">Todas las carreras</option>
+                    <option value="sistemas">Sistemas</option>
+                    <option value="civil">Ingeniería Civil</option>
+                    <option value="comercio">Comercio Exterior</option>
+                </select>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Matrícula</th>
+                            <th>Nombre</th>
+                            <th>Carrera</th>
+                            <th>Email</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody">
+                        <tr>
+                            <td>2021-001</td>
+                            <td>Juan Carlos Pérez</td>
+                            <td>Sistemas</td>
+                            <td>e1234567890@live.uleam.edu.ec</td>
+                            <td>
+                                <button class="btn-edit" onclick="editarEstudiante('2021-001')">Editar</button>
+                                <button class="btn-delete" onclick="eliminarEstudiante('2021-001')">Eliminar</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
