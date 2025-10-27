@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Estudiante - ULEAM</title>
+    <link rel="stylesheet" href="styless.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            <ul class="menu">
+                <li><a href="#" class="active" onclick="showSection('dashboard')">📊 Dashboard</a></li>
+                <li><a href="#" onclick="showSection('asistencias')">📋 Mis Asistencias</a></li>
+                <li><a href="#" onclick="showSection('justificaciones')">📝 Justificaciones</a></li>
+            </ul>
+            <div class="user-info">
+                <p>Estudiante: <span id="studentName">Cargando...</span></p>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+        </nav>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboardSection">
+                <header class="top-bar">
+                    <h1>Panel de Control</h1>
+                    <div class="date-info">
+                        <span id="currentDate">Cargando fecha...</span>
+                    </div>
+                </header>
+
+                <!-- Estadísticas -->
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-icon present-icon">✓</div>
+                        <div class="card-content">
+                            <h3>Total Asistencias</h3>
+                            <p class="card-number" id="totalPresent">0</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon absent-icon">✗</div>
+                        <div class="card-content">
+                            <h3>Total Faltas</h3>
+                            <p class="card-number" id="totalAbsent">0</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon" class="card-icon peding-icon">📄</div>
+                        <div class="card-content">
+                            <h3>Justificaciones Pendientes</h3>
+                            <p class="card-number" id="totalPending">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen por materia -->
+                <div class="card summary-card">
+                    <div class="summary-content">
+                        <h3 class="summary-title">📚 Resumen por Materia</h3> 
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Materia</th>
+                                        <th>Asistencias</th>
+                                        <th>Inasistencias</th>
+                                        <th>Porcentaje</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="summaryTableBody">
+                                    <tr>
+                                        <td colspan="6" class="empty-data">
+                                            No hay datos disponibles
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asistencias Section -->
+            <div id="asistenciasSection" class="hidden-section">
+                <header class="top-bar">
+                    <h1>Mis Asistencias</h1>
+                </header>
+
+                <!-- Filtros -->
+                <div class="filters">
+                    <select class="select-styled" id="filterMateria" onchange="filterAttendance()">
+                        <option value="">📚 Todas las materias</option>
+                    </select>
+                    <select class="select-styled" id="filterEstado" onchange="filterAttendance()">
+                        <option value="">📊 Todos los estados</option>
+                        <option value="presente">✓ Presente</option>
+                        <option value="ausente">✗ Ausente</option>
+                        <option value="justificado">📝 Justificado</option>
+                    </select>
+                </div>
+
+                <!-- Tabla de asistencias -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Materia</th>
+                                <th>Estado</th>
+                                <th>Observaciones</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <tr>
+                                <td colspan="5" class="empty-data">
+                                    No hay registros de asistencia
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Justificaciones Section -->
+            <div id="justificacionesSection" class="hidden-section">
+                <header class="top-bar">
+                    <h1>Mis Justificaciones</h1>
+                </header>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha Falta</th>
+                                <th>Materia</th>
+                                <th>Tipo</th>
+                                <th>Motivo</th>
+                                <th>Estado</th>
+                                <th>Fecha Solicitud</th>
+                            </tr>
+                        </thead>
+                        <tbody id="justificacionesTableBody">
+                            <tr>
+                                <td colspan="6" class="empty-data">
+                                    No hay justificaciones registradas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Justificar Falta -->
+    <div id="justifyModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Justificar Falta</h2>
+                <button class="modal-close" onclick="closeJustifyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box">
+                    <p class="info-text">
+                        <strong>📌 Información:</strong> Complete el formulario para justificar su inasistencia. El docente revisará su solicitud.
+                    </p>
+                </div>
+                
+                <form id="justifyForm">
+                    <input type="hidden" id="justifyAttendanceId">
+                    
+                    <div class="form-group">
+                        <label>Materia:</label>
+                        <input type="text" id="justifyMateria" class="input-styled" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha de la falta:</label>
+                        <input type="text" id="justifyFecha" class="input-styled" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de justificación</label>
+                        <select id="justifyTipo" class="select-styled" required>
+                            <option value="">Seleccione un tipo</option>
+                            <option value="medico">🏥 Certificado Médico</option>
+                            <option value="calamidad">⚠️ Calamidad Doméstica</option>
+                            <option value="tramite">📋 Trámite Institucional</option>
+                            <option value="otro">📝 Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Motivo de la ausencia *</label>
+                        <textarea id="justifyMotivo" class="textarea-styled" required 
+                            placeholder="Describa detalladamente el motivo de su ausencia..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Adjuntar documento de respaldo (PDF, JPG, PNG)</label>
+                        <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                            <p id="fileName" class="file-name">📎 Haga clic para seleccionar un archivo</p>
+                            <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" class="file-input" onchange="handleFileSelect(event)">
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeJustifyModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary">Enviar Justificación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL CERRAR SESIÓN -->
+    <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
+        <div class="modal-contenido">
+            <p>¿Estás seguro de cerrar sesión?</p>
+            <div class="modal-botones">
+                <button id="btnConfirmarCerrar" class="btn-confirmar">Confirmar</button>
+                <button id="btnCancelarCerrar" class="btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - ULEAM</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styless.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -23,7 +23,7 @@
             
             <div class="user-info">
                 <p>Docente: Juan Pérez</p>
-                <button class="btn-logout">Cerrar Sesión</button>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
             </div>
         </nav>
         
@@ -40,7 +40,7 @@
                     <div class="card-icon students-icon">👨‍🎓</div>
                     <div class="card-content">
                         <h3>Estudiantes Registrados</h3>
-                        <p class="card-number">250</p>
+                        <p id="studentsCount" class="card-number">0</p>
                     </div>
                 </div>
                 
@@ -48,7 +48,7 @@
                     <div class="card-icon present-icon">✓</div>
                     <div class="card-content">
                         <h3>Asistencias Hoy</h3>
-                        <p class="card-number">198</p>
+                        <p id="presentCount" class="card-number">0</p>
                     </div>
                 </div>
                 
@@ -56,14 +56,22 @@
                     <div class="card-icon absent-icon">✗</div>
                     <div class="card-content">
                         <h3>Inasistencias</h3>
-                        <p class="card-number">52</p>
+                        <p id="absentCount" class="card-number">0</p>
                     </div>
                 </div>
-        
             </div>
         </main>
     </div>
-    
+    <!-- MODAL CERRAR SESIÓN -->
+    <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
+        <div class="modal-contenido">
+            <p>¿Estás seguro de cerrar sesión?</p>
+            <div class="modal-botones">
+                <button id="btnConfirmarCerrar" class="btn-confirmar">Confirmar</button>
+                <button id="btnCancelarCerrar" class="btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

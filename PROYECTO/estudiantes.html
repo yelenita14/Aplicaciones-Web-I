@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudiantes - ULEAM</title>
+    <link rel="stylesheet" href="styless.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="estudiantes.html" class="active">Estudiantes</a></li>
+                <li><a href="asistencias.html">Asistencias</a></li>
+                <li><a href="materias.html">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Profesor: Juan Pérez</p>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Gestión de Estudiantes</h1>
+                <button class="btn-primary" onclick="agregarEstudiante()">+ Agregar Estudiante</button>
+            </header>
+            
+            <div class="filters">
+                <input type="text" id="searchStudent" placeholder="Buscar estudiante...">
+                <select id="filterCarrera">
+                    <option value="">Todas las carreras</option>
+                    <!-- Se llena dinámicamente desde JavaScript -->
+                </select>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Matrícula</th>
+                            <th>Nombre</th>
+                            <th>Carrera</th>
+                            <th>Email</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para agregar/editar estudiante -->
+    <div id="studentModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <header class="modal-header">
+                <h2 id="modalTitle">Nuevo Estudiante</h2>
+                <button type="button" class="modal-close" onclick="cerrarModal()" aria-label="Cerrar">&times;</button>
+            </header>
+
+            <form id="formEstudiante" class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="matricula">Matrícula</label>
+                        <input id="matricula" name="matricula" class="input-styled" placeholder="2023P1-43758">
+                        <span id="matriculaError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="cedula">Cédula</label>
+                        <input id="cedula" name="cedula" class="input-styled" placeholder="1234567890" maxlength="10">
+                        <span id="cedulaError" class="error-message"></span>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nombres">Nombres</label>
+                        <input id="nombres" name="nombres" class="input-styled" placeholder="Juan Carlos">
+                        <span id="nombresError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="apellidos">Apellidos</label>
+                        <input id="apellidos" name="apellidos" class="input-styled" placeholder="Pérez">
+                        <span id="apellidosError" class="error-message"></span>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="emailEstudiante">Email institucional</label>
+                        <input id="emailEstudiante" name="emailEstudiante" class="input-styled" placeholder="e123456@live.uleam.edu.ec">
+                        <span id="emailEstudianteError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="telefono">Teléfono</label>
+                        <input id="telefono" name="telefono" class="input-styled" placeholder="0987654321" maxlength="10">
+                        <span id="telefonoError" class="error-message"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="carrera">Carrera</label>
+                    <div class="carrera-select-container">
+                        <select id="carrera" name="carrera" class="select-styled">
+                            <option value="">Seleccione una carrera</option>
+                            <!-- Se llena dinámicamente desde JavaScript -->
+                        </select>
+                        <button type="button" class="btn-add-carrera" onclick="agregarCarrera()" title="Agregar nueva carrera">
+                            + Nueva Carrera
+                        </button>
+                    </div>
+                    <span id="carreraError" class="error-message"></span>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para agregar carrera -->
+    <div id="carreraModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true">
+            <header class="modal-header">
+                <h2>Nueva Carrera</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalCarrera()" aria-label="Cerrar">&times;</button>
+            </header>
+
+            <form id="formCarrera" class="modal-body">
+                <div class="form-group">
+                    <label for="nombreCarrera">Nombre de la Carrera *</label>
+                    <input id="nombreCarrera" name="nombreCarrera" class="input-styled" placeholder="Ej: Ingeniería en Sistemas" required>
+                    <span id="nombreCarreraError" class="error-message"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="facultadCarrera">Facultad</label>
+                    <input id="facultadCarrera" name="facultadCarrera" class="input-styled" placeholder="Ej: Facultad de Ciencias Informáticas">
+                    <span id="facultadCarreraError" class="error-message"></span>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalCarrera()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Agregar Carrera</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- MODAL CERRAR SESIÓN -->
+    <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
+        <div class="modal-contenido">
+            <p>¿Estás seguro de cerrar sesión?</p>
+            <div class="modal-botones">
+                <button id="btnConfirmarCerrar" class="btn-confirmar">Confirmar</button>
+                <button id="btnCancelarCerrar" class="btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

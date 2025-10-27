@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asistencias - ULEAM</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styless.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -23,7 +23,7 @@
             
             <div class="user-info">
                 <p>Docente: Juan Pérez</p>
-                <button class="btn-logout">Cerrar Sesión</button>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
             </div>
         </nav>
         
@@ -37,9 +37,11 @@
                         <label for="materiaAsistencia">Materia:</label>
                         <select id="materiaAsistencia" class="select-styled" required>
                             <option value="">Seleccione una materia</option>
-                            <option value="prog-web">Programación Web</option>
-                            <option value="base-datos">Base de Datos</option>
+                            <option value="prog-web">Algoritmos y Programación</option>
+                            <option value="base-datos">Análisis y Diseño de Base de Datos</option>
                             <option value="redes">Redes de Computadoras</option>
+                            <option value="web">Aplicaciones Web I</option>
+                            
                         </select>
                     </div>
                     
@@ -47,42 +49,38 @@
                         <label for="fechaAsistencia">Fecha:</label>
                         <input type="date" id="fechaAsistencia" class="input-styled" required>
                     </div>
-                    
                     <button type="submit" class="btn-primary btn-cargar">Registrar Asistencia</button>
                 </div>
             </form>
             
-            <div class="attendance-list">
+            <div class="table-container">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Matrícula</th>
-                            <th>Estudiante</th>
+                            <th>Nombre/Apellidos</th>
+                            <th>Correo institucional</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="attendanceTableBody">
-                        <tr>
-                            <td>2025-1</td>
-                            <td>Maria Jose Lopez</td>
-                            <td>
-                                <select class="status-select presente">
-                                    <option value="presente" selected>Presente</option>
-                                    <option value="ausente">Ausente</option>
-                                    <option value="justificado">Justificado</option>
-                                </select>
-                            </td>
-                            <td>
-                                <button class="btn-edit">Ver Detalle</button>
-                            </td>
-                        </tr>
+                        <!--Se llena dinamicamente -->
                     </tbody>
                 </table>
             </div>
+            <button type="button" class="btn-save-attendance" onclick="saveAttendance()">Guardar Asistencia</button>
         </main>
     </div>
-    
+    <!-- MODAL CERRAR SESIÓN -->
+    <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
+        <div class="modal-contenido">
+            <p>¿Estás seguro de cerrar sesión?</p>
+            <div class="modal-botones">
+                <button id="btnConfirmarCerrar" class="btn-confirmar">Confirmar</button>
+                <button id="btnCancelarCerrar" class="btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

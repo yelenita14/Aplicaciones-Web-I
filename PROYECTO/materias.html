@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materias - ULEAM</title>
+    <link rel="stylesheet" href="styless.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo-sidebar">
+                <img src="ULEAM.png" alt="ULEAM">
+            </div>
+            
+            <ul class="menu">
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="estudiantes.html">Estudiantes</a></li>
+                <li><a href="asistencias.html">Asistencias</a></li>
+                <li><a href="materias.html" class="active">Materias</a></li>
+                <li><a href="reportes.html">Reportes</a></li>
+            </ul>
+            
+            <div class="user-info">
+                <p>Profesor: Juan Pérez</p>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Gestión de Materias</h1>
+                <button class="btn-primary" onclick="nuevaMateria()">+ Nueva Materia</button>
+            </header>
+            
+            <div class="filters">
+                <input type="text" id="searchMateria" placeholder="Buscar materia...">
+                <select id="filterNivel">
+                    <option value="">Todos los niveles</option>
+                    <option value="1">Nivel 1</option>
+                    <option value="2">Nivel 2</option>
+                    <option value="3">Nivel 3</option>
+                    <option value="4">Nivel 4</option>
+                    <option value="5">Nivel 5</option>
+                    <option value="6">Nivel 6</option>
+                    <option value="7">Nivel 7</option>
+                    <option value="8">Nivel 8</option>
+                    <option value="9">Nivel 9</option>  
+                </select>
+                <button class="btn-primary">Buscar</button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Materia</th>
+                            <th>Docente</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="materiaTableBody">
+                        <tr>
+                            <td>
+                                <button class="btn-edit" onclick="editarMateria('MAT-001')">Editar</button>
+                                <button class="btn-delete" onclick="eliminarMateria('MAT-001')">Eliminar</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        
+ <!-- Modal para agregar/editar materia -->
+    <div id="materiaModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitleMateria">
+            <header class="modal-header">
+                <h2 id="modalTitleMateria">Nueva Materia</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalMateria()" aria-label="Cerrar">&times;</button>
+            </header>
+
+            <form id="formMateria" class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="codigoMateria">Código</label>
+                        <input id="codigoMateria" name="codigoMateria" class="input-styled" placeholder="IS-001">
+                        <span id="codigoMateriaError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="nivelMateria">Nivel</label>
+                        <select id="nivelMateria" name="nivelMateria" class="select-styled">
+                            <option value="">Seleccione nivel</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                        </select>
+                        <span id="nivelMateriaError" class="error-message"></span>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nombreMateria">Nombre de la materia</label>
+                        <input id="nombreMateria" name="nombreMateria" class="input-styled" placeholder="Ingeniería de Software II">
+                        <span id="nombreMateriaError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="creditosMateria">Créditos</label>
+                            <input id="creditosMateria" name="creditosMateria" type="number" min="1" max="200" class="input-styled" placeholder="3">
+                        <span id="creditosMateriaError" class="error-message"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="docenteMateria">Docente</label>
+                        <input id="docenteMateria" name="docenteMateria" class="input-styled" placeholder="Juan Pérez">
+                        <span id="docenteMateriaError" class="error-message"></span>
+                    </div>
+
+                </div>
+
+                <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalMateria()">Cancelar</button>
+                    <button type="submit" class="btn-primary" >Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- MODAL CERRAR SESIÓN -->
+    <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
+        <div class="modal-contenido">
+            <p>¿Estás seguro de cerrar sesión?</p>
+            <div class="modal-botones">
+                <button id="btnConfirmarCerrar" class="btn-confirmar">Confirmar</button>
+                <button id="btnCancelarCerrar" class="btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
