@@ -59,6 +59,13 @@
                 </div>
             </form>
             
+            <div class="export-import-controls">
+                <button type="button" class="btn-export" onclick="exportarJSON()">Exportar JSON</button>
+                <button type="button" class="btn-export" onclick="exportarXML()">Exportar XML</button>
+                <button type="button" class="btn-import" onclick="document.getElementById('importFile').click()">Importar Archivo</button>
+                <input type="file" id="importFile" style="display: none;" accept=".json,.xml" onchange="importarArchivo(event)">
+            </div>
+
             <div class="table-container">
                 <table class="data-table">
                     <thead>

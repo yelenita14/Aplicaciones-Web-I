@@ -72,6 +72,8 @@ function cerrarSesion(){
     document.getElementById('modalCerrarSesion').style.display = 'block';
     document.getElementById('btnConfirmarCerrar').onclick = function () {
         localStorage.removeItem('usuarioActual');
+        sessionStorage.removeItem('sesionActiva');
+        sessionStorage.removeItem('usuarioSesion');
         window.location.href = 'index.html';
     };
     document.getElementById('btnCancelarCerrar').onclick = function () {
@@ -121,13 +123,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const esEstudiante = email.startsWith('e') && email.includes('@live.uleam.edu.ec');
                 const esDocente = email.includes('@uleam.edu.ec') && !email.includes('@live.uleam.edu.ec');
                 
-                // Guardar sesión actual
+                // Guardar sesión en Local Storage (persistente)
                 const usuarioActual = {
                     email: email,
                     tipo: esEstudiante ? 'estudiante' : 'docente',
                     fechaLogin: new Date().toISOString()
                 };
                 localStorage.setItem('usuarioActual', JSON.stringify(usuarioActual));
+                
+                // Guardar sesión en Session Storage (temporal - solo durante la sesión actual)
+                const sesionTemporal = {
+                    email: email,
+                    tipo: esEstudiante ? 'estudiante' : 'docente',
+                    horaLogin: new Date().toLocaleTimeString(),
+                    fechaLogin: new Date().toISOString(),
+                    activa: true
+                };
+                sessionStorage.setItem('sesionActiva', JSON.stringify(sesionTemporal));
+                sessionStorage.setItem('usuarioSesion', email);
                 
                 // Redirigir según tipo de usuario
                 if (esEstudiante) {
@@ -439,7 +452,7 @@ function loadStudents() {
     if (estudiantes.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-light);">
+                <td colspan="4" class="empty-cell">
                     No hay estudiantes registrados
                 </td>
             </tr>
@@ -459,24 +472,22 @@ function loadStudents() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <strong>${est.nombres} ${est.apellidos}</strong>
+                ${est.nombres} ${est.apellidos}
             </td>
             <td>
                 ${est.email}
             </td>
-            <td style="text-align: center;">
-                <input type="radio" 
+            <td class="center-cell">
+                <input type="radio" class="radio-input"
                 id="radio_${est.matricula}"
                 ${estadoActual === 'ausente' ? 'checked' : ''}
-                onchange="setAttendance('${est.matricula}', 'ausente')"
-                style="width: 20px; height: 20px; cursor: pointer;">
+                onchange="setAttendance('${est.matricula}', 'ausente')">
             </td>
             <td>
-                <input type="text" 
+                <input type="text" class="obs-input"
                     id="obs_${est.matricula}"
                     placeholder="Observación / Justificación"
-                    value="${observacionActual || ''}"
-                    style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px;">
+                    value="${observacionActual || ''}">
             </td>
         `;
         tbody.appendChild(tr);
@@ -583,20 +594,17 @@ function mostrarNotificacion(mensaje, tipo) {
     }
     
     const colores = {
-        success: { bg: '#d4edda', color: '#155724', border: '#c3e6cb' },
-        error: { bg: '#f8d7da', color: '#721c24', border: '#f5c6cb' },
-        info: { bg: '#d1ecf1', color: '#0c5460', border: '#bee5eb' }
+        success: 'alert-success',
+        error: 'alert-error',
+        info: 'alert-info'
     };
     
-    const estilo = colores[tipo] || colores.info;
-    notif.style.background = estilo.bg;
-    notif.style.color = estilo.color;
-    notif.style.border = `1px solid ${estilo.border}`;
+    const clase = colores[tipo] || colores.info;
+    notif.className = `notificacion ${clase}`;
     notif.textContent = mensaje;
-    notif.style.display = 'block';
     
     setTimeout(() => {
-        notif.style.display = 'none';
+        notif.classList.remove('show');
     }, 4000);
 }
 
@@ -1120,7 +1128,7 @@ function buscarMaterias() {
     });
     
     if (filtradas.length === 0) {
-        materiaTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light);">No se encontraron materias</td></tr>';
+        materiaTableBody.innerHTML = '<tr><td colspan="4" class="empty-cell">No se encontraron materias</td></tr>';
         return;
     }
     
@@ -1450,7 +1458,7 @@ function renderAttendanceTable() {
                 ${canJustify ? 
                     `<button class="btn-justify" onclick="openJustifyModal(${a.id})">Justificar</button>` : 
                     a.estado === 'ausente' ? 
-                    '<span style="color: var(--text-light);">Ya justificada</span>' : 
+                    '<span class="text-light">Ya justificada</span>' : 
                     '-'
                 }
             </td>
@@ -1531,7 +1539,7 @@ function renderJustificacionesTable() {
                 <td>${j.materia}</td>
                 <td>${j.tipo.charAt(0).toUpperCase() + j.tipo.slice(1)}</td>
                 <td>${j.motivo.substring(0, 50)}${j.motivo.length > 50 ? '...' : ''}</td>
-                <td><span class="status-badge" style="background: ${statusColors[j.estado]}">
+                <td><span class="status-badge status-${j.estado}">
                     ${j.estado.charAt(0).toUpperCase() + j.estado.slice(1)}
                 </span></td>
                 <td>${new Date(j.fechaSolicitud).toLocaleDateString('es-EC')}</td>
@@ -1692,7 +1700,7 @@ function cargarNotificacionesDocente() {
     if (!notificacionesList) return;
     
     if (notificacionesPendientes.length === 0) {
-        notificacionesList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay notificaciones pendientes</p>';
+        notificacionesList.innerHTML = '<p class="empty-cell">No hay notificaciones pendientes</p>';
         return;
     }
     
@@ -1700,13 +1708,13 @@ function cargarNotificacionesDocente() {
     
     notificacionesPendientes.forEach(notif => {
         const div = document.createElement('div');
-        div.style.cssText = 'background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #3498db; cursor: pointer;';
+        div.className = 'notification-card';
         div.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; color: #2c3e50;">${notif.titulo}</h4>
-            <p style="margin: 0 0 8px 0; color: #555; font-size: 14px;">${notif.mensaje}</p>
-            <small style="color: var(--text-light);">📅 ${new Date(notif.fechaCreacion).toLocaleString('es-EC')}</small>
-            <div style="margin-top: 10px;">
-                <button class="btn-primary" onclick="abrirRevisarJustificacion(${JSON.stringify(notif.detalles).replace(/"/g, '&quot;')}, ${notif.id})" style="padding: 8px 16px; font-size: 13px;">
+            <h4 class="notif-title">${notif.titulo}</h4>
+            <p class="notif-message">${notif.mensaje}</p>
+            <small class="notif-date">📅 ${new Date(notif.fechaCreacion).toLocaleString('es-EC')}</small>
+            <div class="notif-actions">
+                <button class="btn-primary btn-small" onclick="abrirRevisarJustificacion(${JSON.stringify(notif.detalles).replace(/"/g, '&quot;')}, ${notif.id})">
                     Ver Justificación
                 </button>
             </div>
@@ -1727,9 +1735,9 @@ function actualizarBadgeNotificaciones() {
     if (badge) {
         if (pendientes > 0) {
             badge.textContent = pendientes;
-            badge.style.display = 'inline-block';
+            badge.classList.add('badge-active');
         } else {
-            badge.style.display = 'none';
+            badge.classList.remove('badge-active');
         }
     }
 }
@@ -2132,3 +2140,314 @@ function generarReporteGeneralPDF(doc, asistencias, yStart) {
 function logout() {
     cerrarSesion();
 }
+
+// ==================== FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN ====================
+
+// Exportar asistencias a JSON
+function exportarJSON() {
+    cargarLocalStorage();
+    
+    if (asistencias.length === 0) {
+        alert('No hay asistencias para exportar');
+        return;
+    }
+    
+    const datos = {
+        fecha_exportacion: new Date().toISOString(),
+        total_registros: asistencias.length,
+        asistencias: asistencias
+    };
+    
+    const jsonString = JSON.stringify(datos, null, 2);
+    descargarArchivo(jsonString, `asistencias_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+    
+    mostrarNotificacion('✓ Archivo JSON exportado exitosamente', 'success');
+}
+
+// Exportar asistencias a XML
+function exportarXML() {
+    cargarLocalStorage();
+    
+    if (asistencias.length === 0) {
+        alert('No hay asistencias para exportar');
+        return;
+    }
+    
+    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xmlString += '<asistencias>\n';
+    xmlString += `\t<fecha_exportacion>${new Date().toISOString()}</fecha_exportacion>\n`;
+    xmlString += `\t<total_registros>${asistencias.length}</total_registros>\n`;
+    xmlString += '\t<registros>\n';
+    
+    asistencias.forEach(asistencia => {
+        xmlString += '\t\t<registro>\n';
+        xmlString += `\t\t\t<id>${escapeXML(asistencia.id)}</id>\n`;
+        xmlString += `\t\t\t<matricula>${escapeXML(asistencia.matricula)}</matricula>\n`;
+        xmlString += `\t\t\t<nombres>${escapeXML(asistencia.nombres)}</nombres>\n`;
+        xmlString += `\t\t\t<apellidos>${escapeXML(asistencia.apellidos)}</apellidos>\n`;
+        xmlString += `\t\t\t<email>${escapeXML(asistencia.email)}</email>\n`;
+        xmlString += `\t\t\t<materia>${escapeXML(asistencia.materia)}</materia>\n`;
+        xmlString += `\t\t\t<codigo_materia>${escapeXML(asistencia.codigoMateria)}</codigo_materia>\n`;
+        xmlString += `\t\t\t<fecha>${escapeXML(asistencia.fecha)}</fecha>\n`;
+        xmlString += `\t\t\t<estado>${escapeXML(asistencia.estado)}</estado>\n`;
+        xmlString += `\t\t\t<observacion>${escapeXML(asistencia.observacion || '')}</observacion>\n`;
+        xmlString += `\t\t\t<registrado_por>${escapeXML(asistencia.registradoPor)}</registrado_por>\n`;
+        xmlString += `\t\t\t<fecha_registro>${escapeXML(asistencia.fechaRegistro)}</fecha_registro>\n`;
+        xmlString += '\t\t</registro>\n';
+    });
+    
+    xmlString += '\t</registros>\n';
+    xmlString += '</asistencias>';
+    
+    descargarArchivo(xmlString, `asistencias_${new Date().toISOString().split('T')[0]}.xml`, 'application/xml');
+    
+    mostrarNotificacion('✓ Archivo XML exportado exitosamente', 'success');
+}
+
+// Función auxiliar para escapar caracteres XML
+function escapeXML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+// Función para descargar archivo
+function descargarArchivo(contenido, nombreArchivo, tipo) {
+    const blob = new Blob([contenido], { type: tipo });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+// Importar datos desde JSON o XML
+function importarArchivo(event) {
+    const archivo = event.target.files[0];
+    
+    if (!archivo) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const contenido = e.target.result;
+            const extension = archivo.name.split('.').pop().toLowerCase();
+            
+            if (extension === 'json') {
+                importarJSON(contenido);
+            } else if (extension === 'xml') {
+                importarXML(contenido);
+            } else {
+                alert('Formato de archivo no soportado. Usa JSON o XML');
+            }
+        } catch (error) {
+            console.error('Error al importar:', error);
+            alert('Error al procesar el archivo: ' + error.message);
+        }
+    };
+    
+    reader.readAsText(archivo);
+    
+    // Limpiar el input para permitir importar el mismo archivo nuevamente
+    event.target.value = '';
+}
+
+// Importar datos desde JSON
+function importarJSON(contenido) {
+    try {
+        const datos = JSON.parse(contenido);
+        
+        if (!datos.asistencias || !Array.isArray(datos.asistencias)) {
+            throw new Error('Formato JSON inválido. Debe contener un array "asistencias"');
+        }
+        
+        const confirmacion = confirm(`Se importarán ${datos.asistencias.length} registros de asistencia. ¿Deseas continuar?`);
+        
+        if (!confirmacion) return;
+        
+        // Combinar registros existentes con los nuevos
+        const registrosNuevos = datos.asistencias.filter(reg => {
+            return !asistencias.some(a => 
+                a.matricula === reg.matricula && 
+                a.fecha === reg.fecha && 
+                a.codigoMateria === reg.codigoMateria
+            );
+        });
+        
+        asistencias = [...asistencias, ...registrosNuevos];
+        localStorage.setItem('asistencias', JSON.stringify(asistencias));
+        
+        mostrarNotificacion(`✓ ${registrosNuevos.length} registros importados exitosamente`, 'success');
+        
+    } catch (error) {
+        alert('Error al importar JSON: ' + error.message);
+    }
+}
+
+// Importar datos desde XML
+function importarXML(contenido) {
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(contenido, 'application/xml');
+        
+        if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+            throw new Error('Formato XML inválido');
+        }
+        
+        const registros = xmlDoc.getElementsByTagName('registro');
+        
+        if (registros.length === 0) {
+            throw new Error('No se encontraron registros en el archivo XML');
+        }
+        
+        const confirmacion = confirm(`Se importarán ${registros.length} registros de asistencia. ¿Deseas continuar?`);
+        
+        if (!confirmacion) return;
+        
+        let registrosImportados = 0;
+        
+        for (let i = 0; i < registros.length; i++) {
+            const registro = registros[i];
+            
+            const getElementValue = (elementName) => {
+                const elements = registro.getElementsByTagName(elementName);
+                return elements.length > 0 ? elements[0].textContent : '';
+            };
+            
+            const nuevoRegistro = {
+                id: getElementValue('id') || Date.now() + Math.random(),
+                matricula: getElementValue('matricula'),
+                nombres: getElementValue('nombres'),
+                apellidos: getElementValue('apellidos'),
+                email: getElementValue('email'),
+                materia: getElementValue('materia'),
+                codigoMateria: getElementValue('codigo_materia'),
+                fecha: getElementValue('fecha'),
+                estado: getElementValue('estado'),
+                observacion: getElementValue('observacion'),
+                registradoPor: getElementValue('registrado_por'),
+                fechaRegistro: getElementValue('fecha_registro') || new Date().toISOString()
+            };
+            
+            // Verificar si ya existe un registro similar
+            const existente = asistencias.some(a => 
+                a.matricula === nuevoRegistro.matricula && 
+                a.fecha === nuevoRegistro.fecha && 
+                a.codigoMateria === nuevoRegistro.codigoMateria
+            );
+            
+            if (!existente) {
+                asistencias.push(nuevoRegistro);
+                registrosImportados++;
+            }
+        }
+        
+        localStorage.setItem('asistencias', JSON.stringify(asistencias));
+        
+        mostrarNotificacion(`✓ ${registrosImportados} registros importados exitosamente`, 'success');
+        
+    } catch (error) {
+        alert('Error al importar XML: ' + error.message);
+    }
+}
+
+// ==================== FUNCIONES DE SESIÓN ====================
+
+// Verificar si hay una sesión activa
+function verificarSesion() {
+    const sesionActiva = sessionStorage.getItem('sesionActiva');
+    const usuarioSesion = sessionStorage.getItem('usuarioSesion');
+    
+    if (sesionActiva && usuarioSesion) {
+        return JSON.parse(sesionActiva);
+    }
+    return null;
+}
+
+// Obtener información de la sesión actual
+function obtenerInfoSesion() {
+    const sesion = verificarSesion();
+    if (sesion) {
+        return {
+            email: sesion.email,
+            tipo: sesion.tipo,
+            horaLogin: sesion.horaLogin,
+            tiempoSesion: calcularTiempoSesion(sesion.fechaLogin)
+        };
+    }
+    return null;
+}
+
+// Calcular tiempo de sesión
+function calcularTiempoSesion(fechaLogin) {
+    const ahora = new Date();
+    const login = new Date(fechaLogin);
+    const diferencia = Math.floor((ahora - login) / 1000); // segundos
+    
+    if (diferencia < 60) return `${diferencia}s`;
+    if (diferencia < 3600) return `${Math.floor(diferencia / 60)}m`;
+    return `${Math.floor(diferencia / 3600)}h ${Math.floor((diferencia % 3600) / 60)}m`;
+}
+
+// Mostrar información de la sesión en consola (útil para debugging)
+function mostrarInfoSesion() {
+    const info = obtenerInfoSesion();
+    if (info) {
+        console.log('=== INFORMACIÓN DE SESIÓN ===');
+        console.log(`Email: ${info.email}`);
+        console.log(`Tipo: ${info.tipo}`);
+        console.log(`Hora de login: ${info.horaLogin}`);
+        console.log(`Tiempo de sesión: ${info.tiempoSesion}`);
+        console.log('============================');
+        return info;
+    } else {
+        console.log('No hay sesión activa');
+        return null;
+    }
+}
+
+// Renovar sesión (actualiza la información)
+function renovarSesion() {
+    const sesionActiva = sessionStorage.getItem('sesionActiva');
+    if (sesionActiva) {
+        const sesion = JSON.parse(sesionActiva);
+        sesion.ultimaActividad = new Date().toISOString();
+        sessionStorage.setItem('sesionActiva', JSON.stringify(sesion));
+        console.log('Sesión renovada');
+    }
+}
+
+// Mostrar información de sesión en la interfaz
+document.addEventListener('DOMContentLoaded', function() {
+    const sesion = verificarSesion();
+    if (sesion) {
+        console.log('=== INFORMACIÓN DE SESIÓN ACTIVA ===');
+        console.log(`👤 Usuario: ${sesion.email}`);
+        console.log(`🎯 Tipo: ${sesion.tipo.charAt(0).toUpperCase() + sesion.tipo.slice(1)}`);
+        console.log(`🕐 Hora de login: ${sesion.horaLogin}`);
+        console.log(`📅 Fecha: ${new Date(sesion.fechaLogin).toLocaleDateString('es-ES')}`);
+        console.log('=====================================');
+        
+        // Actualizar información en tiempo real cada segundo
+        setInterval(function() {
+            const info = obtenerInfoSesion();
+            if (info) {
+                console.clear();
+                console.log('=== INFORMACIÓN DE SESIÓN ACTIVA ===');
+                console.log(`👤 Usuario: ${info.email}`);
+                console.log(`🎯 Tipo: ${info.tipo.charAt(0).toUpperCase() + info.tipo.slice(1)}`);
+                console.log(`🕐 Hora de login: ${info.horaLogin}`);
+                console.log(`⏱️ Tiempo en sesión: ${info.tiempoSesion}`);
+                console.log('=====================================');
+            }
+        }, 1000);
+    }
+});
