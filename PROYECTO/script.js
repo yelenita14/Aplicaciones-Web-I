@@ -1,4 +1,4 @@
-// FUNCIONES DE VALIDACIÓN
+﻿// FUNCIONES DE VALIDACIÓN
 // Validar email
 function validarEmail(email) {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -290,7 +290,7 @@ if (formEstudiante) {
         }
         
         if (isValid) {
-            // Aquí iría el código para guardar el estudiante
+            // Guardar el estudiante
             const nuevo = { matricula, cedula, nombres, apellidos, email, carrera };
             
             let estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]');
@@ -450,6 +450,7 @@ function loadStudents() {
     estudiantes.forEach(est => {
         const registroExistente = registrosExistentes.find(r => r.matricula === est.matricula);
         const estadoActual = registroExistente ? registroExistente.estado : null;
+        const observacionActual = registroExistente ? registroExistente.observacion : '';
         
         if (estadoActual) {
             attendanceData[est.matricula] = estadoActual;
@@ -457,17 +458,24 @@ function loadStudents() {
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
+            <td>
+                <strong>${est.nombres} ${est.apellidos}</strong>
+            </td>
+            <td>
+                ${est.email}
+            </td>
             <td style="text-align: center;">
                 <input type="radio" 
-                name="attendance_${est.matricula}" 
-                value="ausente"
+                id="radio_${est.matricula}"
                 ${estadoActual === 'ausente' ? 'checked' : ''}
-                onchange="setAttendance('${est.matricula}', this.checked ? 'ausente' : 'presente')"
+                onchange="setAttendance('${est.matricula}', 'ausente')"
                 style="width: 20px; height: 20px; cursor: pointer;">
             </td>
             <td>
                 <input type="text" 
+                    id="obs_${est.matricula}"
                     placeholder="Observación / Justificación"
+                    value="${observacionActual || ''}"
                     style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px;">
             </td>
         `;
@@ -514,6 +522,9 @@ function saveAttendance() {
     
     estudiantes.forEach(est => {
         if (attendanceData[est.matricula]) {
+            const observacionInput = document.getElementById(`obs_${est.matricula}`);
+            const observacion = observacionInput ? observacionInput.value.trim() : '';
+            
             asistencias.push({
                 id: Date.now() + Math.random(),
                 matricula: est.matricula,
@@ -524,6 +535,7 @@ function saveAttendance() {
                 codigoMateria: materiaValue,
                 fecha: fecha,
                 estado: attendanceData[est.matricula],
+                observacion: observacion,
                 registradoPor: 'Juan Pérez',
                 fechaRegistro: new Date().toISOString()
             });
@@ -600,6 +612,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setTodayDate();
     cargarLocalStorage();
+    
+    // Actualizar badge de notificaciones si estamos en la página de asistencias
+    if (document.getElementById('badgeNotificaciones')) {
+        actualizarBadgeNotificaciones();
+    }
 });
 // VALIDACIÓN FORMULARIO DE REPORTES
 const formReporte = document.getElementById('formReporte');
@@ -627,7 +644,7 @@ if (formReporte) {
         }
         
         if (isValid) {
-            mostrarNotificacion('Generando reporte...', 'info');
+            generarReporte(tipoReporte, fechaInicio, fechaFin);
         }
     });
 }
@@ -695,7 +712,7 @@ function renderizarTabla() {
     estudiantes.forEach((est, idx) => {
         // filtro por carrera
         if (carreraFilter && est.carrera !== carreraFilter) return;
-        // filtro por bÃºsqueda (matrÃ­cula, nombre, apellidos, email)
+        // filtro por bÃºsqueda (matrÃ¬cula, nombre, apellidos, email)
         if (filtro) {
             const combinado = ((est.matricula || '') + ' ' + (est.nombres || '') + ' ' + (est.apellidos || '') + ' ' + (est.email || '')).toLowerCase();
             if (!combinado.includes(filtro)) return;
@@ -750,7 +767,7 @@ function limpiarErroresFormulario() {
     ids.forEach(id => limpiarError(id));
 }
 
-// Buscar Ã­ndice por matrÃ­cula
+// Buscar Ã¬ndice por matrÃ¬cula
 function buscarIndicePorMatricula(matricula) {
     return estudiantes.findIndex(e => e.matricula === matricula);
 }
@@ -845,7 +862,7 @@ if (formEst) {
 
         // Si editIndex >= 0 -> editar
         if (editIndex >= 0) {
-            // evitar duplicar matrÃ­cula con otro registro
+            // evitar duplicar matrÃ¬cula con otro registro
             const otherIdx = estudiantes.findIndex((e,i) => e.matricula === matricula && i !== editIndex);
             if (otherIdx !== -1) {
                 mostrarError('matriculaError','La matrícula ya existe para otro estudiante');
@@ -853,7 +870,7 @@ if (formEst) {
             }
             estudiantes[editIndex] = nuevo;
         } else {
-            // nuevo: comprobar si matrÃ­cula existe
+            // nuevo: comprobar si matrÃ¬cula existe
             if (buscarIndicePorMatricula(matricula) !== -1) {
                 mostrarError('matriculaError','La matrícula ya existe');
                 return;
@@ -891,7 +908,7 @@ function cargarCarreras() {
         console.error('Error parseando carreras desde localStorage', e);
         carreras = [];
     }
-    // Si no hay carreras guardadas, dejamos el array vacÃ­o para que el select
+    // Si no hay carreras guardadas, dejamos el array vacÃ¬o para que el select
     // se mantenga con la opción placeholder hasta que el usuario agregue una nueva.
     if (!carreras || !Array.isArray(carreras)) {
         carreras = [];
@@ -1086,6 +1103,42 @@ function renderizarTablaMaterias() {
     });
 }
 
+// Función de búsqueda de materias
+function buscarMaterias() {
+    if (!materiaTableBody) return;
+    
+    const searchInput = document.getElementById('searchMateria')?.value.toLowerCase() || '';
+    const filterNivel = document.getElementById('filterNivel')?.value || '';
+    
+    materiaTableBody.innerHTML = '';
+    
+    const filtradas = materias.filter(mat => {
+        const coincideNombre = mat.nombre.toLowerCase().includes(searchInput) || 
+                               mat.codigo.toLowerCase().includes(searchInput);
+        const coincideNivel = !filterNivel || mat.nivel === filterNivel;
+        return coincideNombre && coincideNivel;
+    });
+    
+    if (filtradas.length === 0) {
+        materiaTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light);">No se encontraron materias</td></tr>';
+        return;
+    }
+    
+    filtradas.forEach((mat, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${mat.codigo || ''}</td>
+            <td>${mat.nombre || ''}</td>
+            <td>${mat.docente || ''}</td>
+            <td>
+                <button class="btn-edit" onclick="editarMateria('${mat.codigo}')">Editar</button>
+                <button class="btn-delete" onclick="eliminarMateria('${mat.codigo}')">Eliminar</button>
+            </td>
+        `;
+        materiaTableBody.appendChild(tr);
+    });
+}
+
 // Abrir modal para nueva materia
 function nuevaMateria() {
     editMateriaIndex = -1;
@@ -1119,7 +1172,7 @@ function limpiarErroresMateria() {
     });
 }
 
-// Buscar Ã­ndice por cÃ³digo de materia
+// Buscar Ã¬ndice por cÃ³digo de materia
 function buscarIndiceMateria(codigo) {
     return materias.findIndex(m => m.codigo === codigo);
 }
@@ -1180,7 +1233,7 @@ if (formMat) {
             mostrarError('creditosMateriaError','Créditos entre 1 y200');
             isValid = false;
         }
-        if (docente === '' || !/^[a-zA-ZÃ¡Ã©Ã­Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘\s]+$/.test(docente)) {
+        if (docente === '' || !/^[a-zA-ZÃ¡Ã©Ã-Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘\s]+$/.test(docente)) {
             mostrarError('docenteMateriaError','Nombre de docente inválido');
             isValid = false;
         }
@@ -1211,7 +1264,7 @@ if (formMat) {
     });
 }
 
-// Inicializar al cargar pÃ¡gina
+// Inicializar al cargar página
 document.addEventListener('DOMContentLoaded', function(){
     cargarMaterias();
     renderizarTablaMaterias();
@@ -1226,3 +1279,856 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+// PANEL ESTUDIANTE
+// Datos del estudiante actual (dinámico: viene de la sesión)
+let currentStudent = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.pathname.includes('panel_estudiante.html')) {
+        // Obtener datos del usuario actual
+        const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+        if (!usuarioActual || usuarioActual.tipo !== 'estudiante') {
+            // Si no hay sesión válida, redirigir al login
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // Buscar datos completos del estudiante en localStorage
+        const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]');
+        currentStudent = estudiantes.find(est => est.email === usuarioActual.email) || {
+            matricula: usuarioActual.matricula,
+            nombres: usuarioActual.nombres,
+            apellidos: usuarioActual.apellidos,
+            email: usuarioActual.email
+        };
+        
+        initializeData();
+        
+        // Cerrar modal al hacer clic fuera
+        const modal = document.getElementById('justifyModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeJustifyModal();
+                }
+            });
+        }
+        
+        // Agregar listener al formulario de justificación
+        const justifyForm = document.getElementById('justifyForm');
+        if (justifyForm) {
+            justifyForm.addEventListener('submit', submitJustification);
+        }
+    }
+});
+
+// Inicializar datos al cargar la página
+function initializeData() {
+    cargarMaterias();
+    cargarAsistenciasEstudiante();
+    cargarJustificacionesEstudiante();
+    updateDashboard();
+    renderAttendanceTable();
+    renderJustificacionesTable();
+    populateFilterMaterias();
+}
+
+// Cargar materias desde localStorage
+function cargarMaterias() {
+    materias = JSON.parse(localStorage.getItem('materias') || '[]');
+    
+    // Si no hay materias, crear algunas de ejemplo
+    if (materias.length === 0) {
+        materias = [
+            { codigo: 'IS-001', nombre: 'Ingeniería de Software', nivel: '7' },
+            { codigo: 'BD-002', nombre: 'Base de Datos', nivel: '7' },
+            { codigo: 'RC-003', nombre: 'Redes de Computadoras', nivel: '7' }
+        ];
+        localStorage.setItem('materias', JSON.stringify(materias));
+    }
+}
+
+// Cargar asistencias del estudiante
+function cargarAsistenciasEstudiante() {
+    const allAsistencias = JSON.parse(localStorage.getItem('asistencias') || '[]');
+    asistencias = allAsistencias.filter(a => a.matricula === currentStudent.matricula);
+}
+
+// Cargar justificaciones del estudiante
+function cargarJustificacionesEstudiante() {
+    justificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]')
+        .filter(j => j.matricula === currentStudent.matricula);
+}
+
+// Actualizar dashboard del estudiante
+function updateDashboard() {
+    // Mostrar nombre del estudiante
+    const studentNameEl = document.getElementById('studentName');
+    if (studentNameEl) {
+        studentNameEl.textContent = `${currentStudent.nombres} ${currentStudent.apellidos}`;
+    }
+
+    // Calcular estadísticas
+    const totalPresent = asistencias.filter(a => a.estado === 'presente').length;
+    const totalAbsent = asistencias.filter(a => a.estado === 'ausente').length;
+    const totalPending = justificaciones.filter(j => j.estado === 'pendiente').length;
+
+    // Actualizar contadores
+    const presentEl = document.getElementById('totalPresent');
+    const absentEl = document.getElementById('totalAbsent');
+    const pendingEl = document.getElementById('totalPending');
+
+    if (presentEl) presentEl.textContent = totalPresent;
+    if (absentEl) absentEl.textContent = totalAbsent;
+    if (pendingEl) pendingEl.textContent = totalPending;
+
+    // Renderizar tabla resumen
+    renderSummaryTable();
+}
+
+// Renderizar tabla resumen por materia
+function renderSummaryTable() {
+    const summaryBody = document.getElementById('summaryTableBody');
+    if (!summaryBody) return;
+
+    summaryBody.innerHTML = '';
+
+    // Calcular resumen por materia
+    const summary = {};
+    asistencias.forEach(a => {
+        if (!summary[a.materia]) {
+            summary[a.materia] = { presente: 0, ausente: 0, total: 0 };
+        }
+        summary[a.materia].total++;
+        if (a.estado === 'presente') summary[a.materia].presente++;
+        if (a.estado === 'ausente') summary[a.materia].ausente++;
+    });
+    
+    // Renderizar filas
+    Object.keys(summary).forEach(materia => {
+        const data = summary[materia];
+        const porcentaje = ((data.presente / data.total) * 100).toFixed(1);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${materia}</td>
+            <td>${data.presente}</td>
+            <td>${data.ausente}</td>
+            <td><strong>${porcentaje}%</strong></td>
+        `;
+        summaryBody.appendChild(tr);
+    });
+    
+    // Si no hay datos
+    if (Object.keys(summary).length === 0) {
+        summaryBody.innerHTML = '<tr><td colspan="4" class="empty-cell">No hay datos disponibles</td></tr>';
+    }
+}
+
+// Renderizar tabla de asistencias
+function renderAttendanceTable() {
+    const tbody = document.getElementById('attendanceTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    const filtered = getFilteredAttendance();
+
+    filtered.forEach(a => {
+        const tr = document.createElement('tr');
+        const statusClass = `status-${a.estado}`;
+        const statusText = a.estado.charAt(0).toUpperCase() + a.estado.slice(1);
+        
+        // Verificar si puede justificar
+        const canJustify = a.estado === 'ausente' && 
+            !justificaciones.some(j => j.attendanceId === a.id);
+
+        tr.innerHTML = `
+            <td>${new Date(a.fecha).toLocaleDateString('es-EC')}</td>
+            <td>${a.materia}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>
+                ${canJustify ? 
+                    `<button class="btn-justify" onclick="openJustifyModal(${a.id})">Justificar</button>` : 
+                    a.estado === 'ausente' ? 
+                    '<span style="color: var(--text-light);">Ya justificada</span>' : 
+                    '-'
+                }
+            </td>
+            <td>
+                <input type="text" 
+                    placeholder="Observación / Justificación"
+                    value="${a.observacion || ''}"
+                    style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px;"
+                    readonly>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No hay registros</td></tr>';
+    }
+}
+
+// Obtener asistencias filtradas
+function getFilteredAttendance() {
+    const materiaFilter = document.getElementById('filterMateria')?.value || '';
+    const estadoFilter = document.getElementById('filterEstado')?.value || '';
+
+    return asistencias.filter(a => {
+        if (materiaFilter && a.materia !== materiaFilter) return false;
+        if (estadoFilter && a.estado !== estadoFilter) return false;
+        return true;
+    }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+}
+
+// Filtrar asistencias
+function filterAttendance() {
+    renderAttendanceTable();
+}
+
+// Poblar filtro de materias
+function populateFilterMaterias() {
+    const select = document.getElementById('filterMateria');
+    if (!select) return;
+
+    const uniqueMaterias = [...new Set(asistencias.map(a => a.materia))];
+    
+    uniqueMaterias.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m;
+        option.textContent = m;
+        select.appendChild(option);
+    });
+}
+
+// Renderizar tabla de justificaciones
+function renderJustificacionesTable() {
+    const tbody = document.getElementById('justificacionesTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (justificaciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No hay justificaciones registradas</td></tr>';
+        return;
+    }
+
+    justificaciones
+        .sort((a, b) => new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud))
+        .forEach(j => {
+            const tr = document.createElement('tr');
+            const statusColors = {
+                pendiente: '#fff3cd',
+                aprobada: '#d4edda',
+                aprobado: '#d4edda',
+                rechazada: '#f8d7da',
+                rechazado: '#f8d7da'
+            };
+            
+            tr.innerHTML = `
+                <td>${new Date(j.fechaFalta).toLocaleDateString('es-EC')}</td>
+                <td>${j.materia}</td>
+                <td>${j.tipo.charAt(0).toUpperCase() + j.tipo.slice(1)}</td>
+                <td>${j.motivo.substring(0, 50)}${j.motivo.length > 50 ? '...' : ''}</td>
+                <td><span class="status-badge" style="background: ${statusColors[j.estado]}">
+                    ${j.estado.charAt(0).toUpperCase() + j.estado.slice(1)}
+                </span></td>
+                <td>${new Date(j.fechaSolicitud).toLocaleDateString('es-EC')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+}
+
+// Abrir modal de justificación
+function openJustifyModal(attendanceId) {
+    const id = parseFloat(attendanceId);
+    const attendance = asistencias.find(a => a.id === id || a.id == id);
+    if (!attendance) return;
+
+    document.getElementById('justifyAttendanceId').value = id;
+    document.getElementById('justifyMateria').value = attendance.materia;
+    document.getElementById('justifyFecha').value = new Date(attendance.fecha).toLocaleDateString('es-EC');
+    document.getElementById('justifyTipo').value = '';
+    document.getElementById('justifyMotivo').value = '';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileName').textContent = '📎 Haga clic para seleccionar un archivo';
+
+    const modal = document.getElementById('justifyModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+// Cerrar modal de justificación
+function closeJustifyModal() {
+    const modal = document.getElementById('justifyModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Manejar selección de archivo
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+            event.target.value = '';
+            return;
+        }
+        document.getElementById('fileName').textContent = `📎 ${file.name}`;
+    }
+}
+
+// Enviar justificación
+function submitJustification(event) {
+    event.preventDefault();
+
+    const attendanceId = parseFloat(document.getElementById('justifyAttendanceId').value);
+    const tipo = document.getElementById('justifyTipo').value;
+    const motivo = document.getElementById('justifyMotivo').value;
+    const file = document.getElementById('fileInput').files[0];
+
+    if (!tipo || !motivo) {
+        alert('Por favor complete todos los campos obligatorios');
+        return;
+    }
+
+    const attendance = asistencias.find(a => a.id === attendanceId || a.id == attendanceId);
+    if (!attendance) {
+        alert('Error: No se encontró la asistencia');
+        return;
+    }
+    
+    const justificacion = {
+        id: Date.now(),
+        attendanceId: attendanceId,
+        matricula: currentStudent.matricula,
+        nombres: currentStudent.nombres,
+        apellidos: currentStudent.apellidos,
+        email: currentStudent.email,
+        materia: attendance.materia,
+        codigoMateria: attendance.codigoMateria,
+        fechaFalta: attendance.fecha,
+        tipo: tipo,
+        motivo: motivo,
+        archivo: file ? file.name : null,
+        estado: 'pendiente',
+        fechaSolicitud: new Date().toISOString(),
+        observaciones: null
+    };
+
+    // Guardar en localStorage de forma global
+    const allJustificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]');
+    allJustificaciones.push(justificacion);
+    localStorage.setItem('justificaciones', JSON.stringify(allJustificaciones));
+
+    // Crear notificación para el docente
+    crearNotificacionDocente(justificacion);
+
+    alert('Justificación enviada exitosamente. El docente la revisará pronto.');
+    
+    closeJustifyModal();
+    
+    // Limpiar el formulario
+    document.getElementById('justifyForm').reset();
+    document.getElementById('fileName').textContent = '📎 Haga clic para seleccionar un archivo';
+    
+    cargarJustificacionesEstudiante();
+    updateDashboard();
+    renderAttendanceTable();
+    renderJustificacionesTable();
+}
+// Cambiar entre secciones del panel
+function showSection(section) {
+    document.getElementById('dashboardSection').style.display = 'none';
+    document.getElementById('asistenciasSection').style.display = 'none';
+    document.getElementById('justificacionesSection').style.display = 'none';
+
+    document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
+
+    if (section === 'dashboard') {
+        document.getElementById('dashboardSection').style.display = 'block';
+        const links = document.querySelectorAll('.menu a');
+        if (links[0]) links[0].classList.add('active');
+    } else if (section === 'asistencias') {
+        document.getElementById('asistenciasSection').style.display = 'block';
+        const links = document.querySelectorAll('.menu a');
+        if (links[1]) links[1].classList.add('active');
+    } else if (section === 'justificaciones') {
+        document.getElementById('justificacionesSection').style.display = 'block';
+        const links = document.querySelectorAll('.menu a');
+        if (links[2]) links[2].classList.add('active');
+    }
+}
+
+// ========== FUNCIONES DE NOTIFICACIONES PARA EL DOCENTE ==========
+
+// Abrir modal de notificaciones
+function abrirNotificaciones() {
+    const modal = document.getElementById('modalNotificaciones');
+    if (modal) {
+        modal.style.display = 'flex';
+        cargarNotificacionesDocente();
+    }
+}
+
+// Cerrar modal de notificaciones
+function cerrarNotificaciones() {
+    const modal = document.getElementById('modalNotificaciones');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Cargar y mostrar notificaciones del docente
+function cargarNotificacionesDocente() {
+    const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
+    const notificacionesPendientes = notificaciones.filter(n => n.estado === 'no_leida');
+    const notificacionesList = document.getElementById('notificacionesList');
+    
+    if (!notificacionesList) return;
+    
+    if (notificacionesPendientes.length === 0) {
+        notificacionesList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay notificaciones pendientes</p>';
+        return;
+    }
+    
+    notificacionesList.innerHTML = '';
+    
+    notificacionesPendientes.forEach(notif => {
+        const div = document.createElement('div');
+        div.style.cssText = 'background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #3498db; cursor: pointer;';
+        div.innerHTML = `
+            <h4 style="margin: 0 0 8px 0; color: #2c3e50;">${notif.titulo}</h4>
+            <p style="margin: 0 0 8px 0; color: #555; font-size: 14px;">${notif.mensaje}</p>
+            <small style="color: var(--text-light);">📅 ${new Date(notif.fechaCreacion).toLocaleString('es-EC')}</small>
+            <div style="margin-top: 10px;">
+                <button class="btn-primary" onclick="abrirRevisarJustificacion(${JSON.stringify(notif.detalles).replace(/"/g, '&quot;')}, ${notif.id})" style="padding: 8px 16px; font-size: 13px;">
+                    Ver Justificación
+                </button>
+            </div>
+        `;
+        notificacionesList.appendChild(div);
+    });
+    
+    // Actualizar badge
+    actualizarBadgeNotificaciones();
+}
+
+// Actualizar badge de notificaciones
+function actualizarBadgeNotificaciones() {
+    const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
+    const pendientes = notificaciones.filter(n => n.estado === 'no_leida').length;
+    const badge = document.getElementById('badgeNotificaciones');
+    
+    if (badge) {
+        if (pendientes > 0) {
+            badge.textContent = pendientes;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+// Abrir modal para revisar justificación
+function abrirRevisarJustificacion(detalles, notificacionId) {
+    document.getElementById('revNombre').textContent = `${detalles.estudianteNombres} ${detalles.estudianteApellidos}`;
+    document.getElementById('revEmail').textContent = detalles.estudianteEmail;
+    document.getElementById('revMateria').textContent = detalles.materia;
+    document.getElementById('revFecha').textContent = new Date(detalles.fechaFalta).toLocaleDateString('es-EC');
+    document.getElementById('revTipo').textContent = detalles.tipoJustificacion;
+    document.getElementById('revMotivo').textContent = detalles.motivo;
+    document.getElementById('revFechaSolicitud').textContent = new Date(new Date().toISOString()).toLocaleString('es-EC');
+    
+    // Guardar el ID de justificación actual
+    document.getElementById('modalRevisarJustificacion').dataset.justificacionId = detalles.justificacionId;
+    document.getElementById('modalRevisarJustificacion').dataset.notificacionId = notificacionId;
+    
+    const modal = document.getElementById('modalRevisarJustificacion');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+    
+    cerrarNotificaciones();
+}
+
+// Cerrar modal de revisar justificación
+function cerrarRevisarJustificacion() {
+    const modal = document.getElementById('modalRevisarJustificacion');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Aprobar justificación
+function aprobarJustificacion() {
+    const modal = document.getElementById('modalRevisarJustificacion');
+    const justificacionId = modal.dataset.justificacionId;
+    const notificacionId = modal.dataset.notificacionId;
+    
+    actualizarEstadoJustificacion(parseInt(justificacionId), 'aprobada');
+    actualizarEstadoNotificacion(parseInt(notificacionId), 'leida');
+    
+    mostrarNotificacion('✓ Justificación aprobada exitosamente', 'success');
+    cerrarRevisarJustificacion();
+    actualizarBadgeNotificaciones();
+}
+
+// Rechazar justificación
+function rechazarJustificacion() {
+    const modal = document.getElementById('modalRevisarJustificacion');
+    const justificacionId = modal.dataset.justificacionId;
+    const notificacionId = modal.dataset.notificacionId;
+    const razon = prompt('Ingrese la razón del rechazo:');
+    
+    if (razon === null) return;
+    
+    actualizarEstadoJustificacion(parseInt(justificacionId), 'rechazada', razon);
+    actualizarEstadoNotificacion(parseInt(notificacionId), 'leida');
+    
+    mostrarNotificacion('✗ Justificación rechazada', 'error');
+    cerrarRevisarJustificacion();
+    actualizarBadgeNotificaciones();
+}
+
+// Actualizar estado de justificación
+function actualizarEstadoJustificacion(justificacionId, nuevoEstado, observacion = null) {
+    const justificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]');
+    const justificacion = justificaciones.find(j => j.id === justificacionId);
+    
+    if (justificacion) {
+        justificacion.estado = nuevoEstado;
+        if (observacion) {
+            justificacion.observaciones = observacion;
+        }
+        justificacion.fechaRevision = new Date().toISOString();
+        
+        localStorage.setItem('justificaciones', JSON.stringify(justificaciones));
+    }
+}
+
+// Actualizar estado de notificación
+function actualizarEstadoNotificacion(notificacionId, nuevoEstado) {
+    const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
+    const notificacion = notificaciones.find(n => n.id === notificacionId);
+    
+    if (notificacion) {
+        notificacion.estado = nuevoEstado;
+        localStorage.setItem('notificacionesDocente', JSON.stringify(notificaciones));
+    }
+}
+
+// Crear notificación para el docente cuando se justifica una falta
+function crearNotificacionDocente(justificacion) {
+    const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
+    
+    const notificacion = {
+        id: Date.now(),
+        tipo: 'justificacion_pendiente',
+        titulo: '📝 Nueva Justificación de Falta',
+        mensaje: `${justificacion.nombres} ${justificacion.apellidos} ha justificado una falta de ${justificacion.materia}`,
+        detalles: {
+            estudianteMatricula: justificacion.matricula,
+            estudianteNombres: justificacion.nombres,
+            estudianteApellidos: justificacion.apellidos,
+            estudianteEmail: justificacion.email,
+            materia: justificacion.materia,
+            fechaFalta: justificacion.fechaFalta,
+            tipoJustificacion: justificacion.tipo,
+            motivo: justificacion.motivo,
+            justificacionId: justificacion.id
+        },
+        estado: 'no_leida',
+        fechaCreacion: new Date().toISOString(),
+        accion: 'revisar_justificacion'
+    };
+    
+    notificaciones.push(notificacion);
+    localStorage.setItem('notificacionesDocente', JSON.stringify(notificaciones));
+}
+
+// Generar Reportes
+function generarReporte(tipoReporte, fechaInicio, fechaFin) {
+    cargarLocalStorage();
+    
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    const asistenciasEnRango = asistencias.filter(a => {
+        const fecha = new Date(a.fecha);
+        return fecha >= inicio && fecha <= fin;
+    });
+    
+    if (asistenciasEnRango.length === 0) {
+        alert('No hay datos para generar el reporte en el rango de fechas seleccionado');
+        return;
+    }
+    
+    // Crear PDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Agregar fondo y diseño
+    doc.setFillColor(240, 248, 255); // Fondo azul claro
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    // Título principal
+    doc.setFontSize(16);
+    doc.setTextColor(0, 51, 102);
+    doc.text('ULEAM - REPORTE DE ASISTENCIA', 20, 18);
+    
+    // Línea divisoria
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 51, 102);
+    doc.line(20, 25, 190, 25);
+    
+    // Información del reporte
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Tipo: ${tipoReporte.charAt(0).toUpperCase() + tipoReporte.slice(1)}`, 20, 35);
+    
+    // Mostrar período académico en todos los reportes
+    let periodoTexto = `${inicio.toLocaleDateString('es-EC')} a ${fin.toLocaleDateString('es-EC')}`;
+    
+    const mes1 = inicio.getMonth() + 1;
+    const year1 = inicio.getFullYear();
+    const mes2 = fin.getMonth() + 1;
+    const year2 = fin.getFullYear();
+    
+    let sem1, sem2;
+    if (mes1 >= 4 && mes1 <= 7) sem1 = 1; else if (mes1 >= 9 && mes1 <= 12) sem1 = 2; else sem1 = (mes1 <= 3) ? 2 : 1;
+    if (mes2 >= 4 && mes2 <= 7) sem2 = 1; else if (mes2 >= 9 && mes2 <= 12) sem2 = 2; else sem2 = (mes2 <= 3) ? 2 : 1;
+    
+    periodoTexto = `${year1}-${sem1} a ${year2}-${sem2}`;
+    
+    doc.text(`Período: ${periodoTexto}`, 20, 43);
+    doc.text(`Generado: ${new Date().toLocaleString('es-EC')}`, 20, 51);
+    
+    let yPosition = 65;
+    
+    if (tipoReporte === 'estudiante') {
+        yPosition = generarReportePorEstudiantePDF(doc, asistenciasEnRango, yPosition);
+    } else if (tipoReporte === 'materia') {
+        yPosition = generarReportePorMateriaPDF(doc, asistenciasEnRango, yPosition);
+    } else if (tipoReporte === 'periodo') {
+        yPosition = generarReportePorPeriodoPDF(doc, asistenciasEnRango, yPosition);
+    } else if (tipoReporte === 'general') {
+        yPosition = generarReporteGeneralPDF(doc, asistenciasEnRango, yPosition);
+    }
+    
+    doc.save(`reporte_${tipoReporte}_${new Date().getTime()}.pdf`);
+    mostrarNotificacion('Reporte PDF generado exitosamente', 'success');
+}
+
+
+function generarReportePorEstudiantePDF(doc, asistencias, yStart) {
+    // Encabezado de sección
+    doc.setFillColor(230, 240, 255);
+    doc.rect(20, yStart - 5, 170, 10, 'F');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('REPORTE POR ESTUDIANTE', 20, yStart);
+    doc.setTextColor(0, 0, 0);
+    yStart += 15;
+    
+    const porEstudiante = {};
+    asistencias.forEach(a => {
+        const key = a.matricula;
+        if (!porEstudiante[key]) {
+            porEstudiante[key] = {
+                nombres: a.nombres,
+                apellidos: a.apellidos,
+                email: a.email,
+                presente: 0,
+                ausente: 0,
+                total: 0
+            };
+        }
+        porEstudiante[key].total++;
+        if (a.estado === 'presente') porEstudiante[key].presente++;
+        else if (a.estado === 'ausente') porEstudiante[key].ausente++;
+    });
+    
+    doc.setFontSize(10);
+    Object.values(porEstudiante).forEach(est => {
+        const porcentaje = ((est.presente / est.total) * 100).toFixed(2);
+        
+        if (yStart > 250) {
+            doc.addPage();
+            yStart = 20;
+        }
+        
+        doc.text(`Estudiante: ${est.nombres} ${est.apellidos}`, 20, yStart);
+        yStart += 7;
+        doc.text(`Email: ${est.email}`, 20, yStart);
+        yStart += 7;
+        doc.text(`Asistencias: ${est.presente} | Inasistencias: ${est.ausente} | Total: ${est.total}`, 20, yStart);
+        yStart += 7;
+        doc.text(`Porcentaje: ${porcentaje}%`, 20, yStart);
+        yStart += 10;
+    });
+    
+    return yStart;
+}
+
+function generarReportePorMateriaPDF(doc, asistencias, yStart) {
+    // Encabezado de sección
+    doc.setFillColor(230, 240, 255);
+    doc.rect(20, yStart - 5, 170, 10, 'F');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('REPORTE POR MATERIA', 20, yStart);
+    doc.setTextColor(0, 0, 0);
+    yStart += 15;
+    
+    const porMateria = {};
+    asistencias.forEach(a => {
+        const key = a.materia;
+        if (!porMateria[key]) {
+            porMateria[key] = {
+                presente: 0,
+                ausente: 0,
+                total: 0
+            };
+        }
+        porMateria[key].total++;
+        if (a.estado === 'presente') porMateria[key].presente++;
+        else if (a.estado === 'ausente') porMateria[key].ausente++;
+    });
+    
+    doc.setFontSize(10);
+    Object.entries(porMateria).forEach(([materia, datos]) => {
+        const porcentaje = ((datos.presente / datos.total) * 100).toFixed(2);
+        
+        if (yStart > 250) {
+            doc.addPage();
+            yStart = 20;
+        }
+        
+        doc.text(`Materia: ${materia}`, 20, yStart);
+        yStart += 7;
+        doc.text(`Asistencias: ${datos.presente} | Inasistencias: ${datos.ausente} | Total: ${datos.total}`, 20, yStart);
+        yStart += 7;
+        doc.text(`Porcentaje Promedio: ${porcentaje}%`, 20, yStart);
+        yStart += 10;
+    });
+    
+    return yStart;
+}
+
+function generarReportePorPeriodoPDF(doc, asistencias, yStart) {
+    // Encabezado de sección
+    doc.setFillColor(230, 240, 255);
+    doc.rect(20, yStart - 5, 170, 10, 'F');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('REPORTE POR PERÍODO', 20, yStart);
+    doc.setTextColor(0, 0, 0);
+    yStart += 15;
+    
+    const porPeriodo = {};
+    asistencias.forEach(a => {
+        const fecha = new Date(a.fecha);
+        const year = fecha.getFullYear();
+        const mes = fecha.getMonth() + 1; // Meses de 1 a 12
+        // Semestre 1: abril-julio (4-7), Semestre 2: septiembre-enero (9-12, 1)
+        let semestre, periodoYear;
+        if (mes >= 4 && mes <= 7) {
+            semestre = 1;
+            periodoYear = year;
+        } else if (mes >= 9 && mes <= 12) {
+            semestre = 2;
+            periodoYear = year;
+        } else if (mes >= 1 && mes <= 3) {
+            semestre = 2;
+            periodoYear = year - 1;
+        } else {
+            semestre = 1;
+            periodoYear = year + 1;
+        }
+        const periodo = `${periodoYear}-${semestre}`;
+        
+        if (!porPeriodo[periodo]) {
+            porPeriodo[periodo] = {
+                presente: 0,
+                ausente: 0,
+                total: 0
+            };
+        }
+        porPeriodo[periodo].total++;
+        if (a.estado === 'presente') porPeriodo[periodo].presente++;
+        else if (a.estado === 'ausente') porPeriodo[periodo].ausente++;
+    });
+    
+    doc.setFontSize(10);
+    Object.entries(porPeriodo)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([periodo, datos]) => {
+            const porcentaje = ((datos.presente / datos.total) * 100).toFixed(2);
+            
+            if (yStart > 250) {
+                doc.addPage();
+                yStart = 20;
+            }
+            
+            doc.text(`Período: ${periodo}`, 20, yStart);
+            yStart += 7;
+            doc.text(`Asistencias: ${datos.presente} | Inasistencias: ${datos.ausente} | Total: ${datos.total}`, 20, yStart);
+            yStart += 7;
+            doc.text(`Porcentaje: ${porcentaje}%`, 20, yStart);
+        yStart += 10;
+    });
+    
+    return yStart;
+}
+
+function generarReporteGeneralPDF(doc, asistencias, yStart) {
+    // Encabezado de sección
+    doc.setFillColor(230, 240, 255);
+    doc.rect(20, yStart - 5, 170, 10, 'F');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 51, 102);
+    doc.text('REPORTE GENERAL', 20, yStart);
+    doc.setTextColor(0, 0, 0);
+    yStart += 15;
+    
+    let totalPresente = 0;
+    let totalAusente = 0;
+    let totalAsistencias = asistencias.length;
+    const materias = new Set();
+    const estudiantes = new Set();
+    
+    asistencias.forEach(a => {
+        if (a.estado === 'presente') totalPresente++;
+        else if (a.estado === 'ausente') totalAusente++;
+        materias.add(a.materia);
+        estudiantes.add(a.matricula);
+    });
+    
+    const porcentaje = ((totalPresente / totalAsistencias) * 100).toFixed(2);
+    
+    doc.setFontSize(11);
+    doc.text(`Total de Registros: ${totalAsistencias}`, 20, yStart);
+    yStart += 8;
+    doc.text(`Asistencias: ${totalPresente}`, 20, yStart);
+    yStart += 8;
+    doc.text(`Inasistencias: ${totalAusente}`, 20, yStart);
+    yStart += 8;
+    doc.text(`Porcentaje General: ${porcentaje}%`, 20, yStart);
+    yStart += 8;
+    doc.text(`Materias Reportadas: ${materias.size}`, 20, yStart);
+    yStart += 8;
+    doc.text(`Estudiantes Reportados: ${estudiantes.size}`, 20, yStart);
+    yStart += 15;
+    
+    return yStart;
+}
+
+// Cerrar sesión (usar la función global ya definida)
+function logout() {
+    cerrarSesion();
+}

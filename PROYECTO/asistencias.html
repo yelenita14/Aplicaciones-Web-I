@@ -30,7 +30,13 @@
         <main class="main-content">
             <header class="top-bar">
                 <h1>Control de Asistencias</h1>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="btn-notification" onclick="abrirNotificaciones()">
+                        🔔 Notificaciones <span id="badgeNotificaciones" style="display: none; background: #e74c3c; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; margin-left: 5px;" class="badge"></span>
+                    </button>
+                </div>
             </header>
+
             <form id="formAsistencia">
                 <div class="attendance-controls">
                     <div class="form-group">
@@ -71,6 +77,57 @@
             <button type="button" class="btn-save-attendance" onclick="saveAttendance()">Guardar Asistencia</button>
         </main>
     </div>
+    <!-- MODAL NOTIFICACIONES -->
+    <div id="modalNotificaciones" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📬 Notificaciones Pendientes</h2>
+                <button class="modal-close" onclick="cerrarNotificaciones()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="notificacionesList">
+                    <p style="text-align: center; color: var(--text-light);">No hay notificaciones pendientes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL REVISAR JUSTIFICACIÓN -->
+    <div id="modalRevisarJustificacion" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📋 Revisar Justificación</h2>
+                <button class="modal-close" onclick="cerrarRevisarJustificacion()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box">
+                    <p class="info-text"><strong>📌 Información:</strong> Revisa la justificación del estudiante y aprueba o rechaza.</p>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4>Información del Estudiante</h4>
+                    <p><strong>Nombre:</strong> <span id="revNombre"></span></p>
+                    <p><strong>Email:</strong> <span id="revEmail"></span></p>
+                    <p><strong>Materia:</strong> <span id="revMateria"></span></p>
+                    <p><strong>Fecha de Falta:</strong> <span id="revFecha"></span></p>
+                </div>
+                
+                <div style="background: #fff9e6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4>Detalles de la Justificación</h4>
+                    <p><strong>Tipo:</strong> <span id="revTipo"></span></p>
+                    <p><strong>Motivo:</strong></p>
+                    <p style="padding: 10px; background: white; border-radius: 6px; border-left: 3px solid #f39c12;" id="revMotivo"></p>
+                    <p><strong>Fecha de Solicitud:</strong> <span id="revFechaSolicitud"></span></p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn-danger" onclick="rechazarJustificacion()" style="flex: 1;">❌ Rechazar</button>
+                    <button class="btn-success" onclick="aprobarJustificacion()" style="flex: 1;">✓ Aprobar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- MODAL CERRAR SESIÓN -->
     <div id="modalCerrarSesion" class="modal-flotante" style="display: none;">
         <div class="modal-contenido">

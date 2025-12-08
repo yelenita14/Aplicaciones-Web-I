@@ -34,8 +34,8 @@
             </header>
             
             <div class="filters">
-                <input type="text" id="searchMateria" placeholder="Buscar materia...">
-                <select id="filterNivel">
+                <input type="text" id="searchMateria" placeholder="Buscar materia..." onkeyup="buscarMaterias()">
+                <select id="filterNivel" onchange="buscarMaterias()">
                     <option value="">Todos los niveles</option>
                     <option value="1">Nivel 1</option>
                     <option value="2">Nivel 2</option>
@@ -47,7 +47,7 @@
                     <option value="8">Nivel 8</option>
                     <option value="9">Nivel 9</option>  
                 </select>
-                <button class="btn-primary">Buscar</button>
+                <button class="btn-primary" onclick="buscarMaterias()">Buscar</button>
             </div>
             
             <div class="table-container">
