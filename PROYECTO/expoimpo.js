@@ -1,5 +1,5 @@
 // SISTEMA JSON Y XML
-//  EXPORTAR A JSON
+// EXPORTAR A JSON
 function exportarJSON() {
     const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]');
     const materias = JSON.parse(localStorage.getItem('materias') || '[]');
