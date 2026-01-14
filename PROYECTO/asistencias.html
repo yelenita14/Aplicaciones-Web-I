@@ -22,7 +22,7 @@
             </ul>
             
             <div class="user-info">
-                <p>Docente: Juan Pérez</p>
+                <p id="docenteNombre"></p>
                 <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
             </div>
         </nav>
@@ -59,6 +59,13 @@
                 </div>
             </form>
             
+            <div class="export-import-controls">
+                <button type="button" class="btn-export" onclick="exportarJSON()">Exportar JSON</button>
+                <button type="button" class="btn-export" onclick="exportarXML()">Exportar XML</button>
+                <button type="button" class="btn-import" onclick="document.getElementById('importFile').click()">Importar Archivo</button>
+                <input type="file" id="importFile" style="display: none;" accept=".json,.xml" onchange="importarArchivo(event)">
+            </div>
+
             <div class="table-container">
                 <table class="data-table">
                     <thead>
@@ -118,6 +125,7 @@
                     <p><strong>Motivo:</strong></p>
                     <p style="padding: 10px; background: white; border-radius: 6px; border-left: 3px solid #f39c12;" id="revMotivo"></p>
                     <p><strong>Fecha de Solicitud:</strong> <span id="revFechaSolicitud"></span></p>
+                    <p><strong>Archivo adjunto:</strong> <span id="revArchivo"></span></p>
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">

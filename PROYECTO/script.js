@@ -49,6 +49,24 @@ function validarMatricula(matricula) {
     return regex.test(matricula);
 }
 
+// Parsear fecha YYYY-MM-DD como Date local
+function parseYMD(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return new Date(dateStr);
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m, d);
+}
+
+// Formatear YYYY-MM-DD a representación local (es-EC)
+function formatYMD(dateStr) {
+    const dt = parseYMD(dateStr);
+    if (!dt || isNaN(dt.getTime())) return dateStr || '';
+    return dt.toLocaleDateString('es-EC');
+}
+
 // Mostrar mensaje de error
 function mostrarError(elementId, mensaje) {
     const errorElement = document.getElementById(elementId);
@@ -72,6 +90,8 @@ function cerrarSesion(){
     document.getElementById('modalCerrarSesion').style.display = 'block';
     document.getElementById('btnConfirmarCerrar').onclick = function () {
         localStorage.removeItem('usuarioActual');
+        sessionStorage.removeItem('sesionActiva');
+        sessionStorage.removeItem('usuarioSesion');
         window.location.href = 'index.html';
     };
     document.getElementById('btnCancelarCerrar').onclick = function () {
@@ -121,13 +141,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 const esEstudiante = email.startsWith('e') && email.includes('@live.uleam.edu.ec');
                 const esDocente = email.includes('@uleam.edu.ec') && !email.includes('@live.uleam.edu.ec');
                 
-                // Guardar sesión actual
+                // Guardar sesión en Local Storage (persistente)
                 const usuarioActual = {
+                    nombre: email
+                        .split('@')[0]
+                        .replace('.', ' ')
+                        .replace(/\b\w/g, letra => letra.toUpperCase()),
                     email: email,
                     tipo: esEstudiante ? 'estudiante' : 'docente',
                     fechaLogin: new Date().toISOString()
                 };
+
                 localStorage.setItem('usuarioActual', JSON.stringify(usuarioActual));
+                
+                // Guardar sesión en Session Storage (temporal - solo durante la sesión actual)
+                const sesionTemporal = {
+                    email: email,
+                    tipo: esEstudiante ? 'estudiante' : 'docente',
+                    horaLogin: new Date().toLocaleTimeString(),
+                    fechaLogin: new Date().toISOString(),
+                    activa: true
+                };
+                sessionStorage.setItem('sesionActiva', JSON.stringify(sesionTemporal));
+                sessionStorage.setItem('usuarioSesion', email);
+                // Guardar o actualizar usuario en la lista global 'usuarios' para poder iniciar sesión posteriormente
+                try {
+                    const usuariosRaw = localStorage.getItem('usuarios') || '[]';
+                    const usuarios = JSON.parse(usuariosRaw);
+                    const idx = usuarios.findIndex(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+                    const nombreGenerado = usuarioActual.nombre;
+                    const tipoGenerado = usuarioActual.tipo;
+                    if (idx !== -1) {
+                        // actualizar contraseña/nombre/tipo si cambió
+                        usuarios[idx].password = password;
+                        usuarios[idx].nombre = nombreGenerado;
+                        usuarios[idx].tipo = tipoGenerado;
+                    } else {
+                        usuarios.push({ email: email, password: password, nombre: nombreGenerado, tipo: tipoGenerado });
+                    }
+                    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                } catch (e) {
+                    console.error('Error guardando usuario en localStorage', e);
+                }
                 
                 // Redirigir según tipo de usuario
                 if (esEstudiante) {
@@ -180,18 +235,39 @@ function actualizarDashboard() {
     const presentCountEl = document.getElementById('presentCount');
     const absentCountEl = document.getElementById('absentCount');
 
-    if (studentsCountEl) studentsCountEl.textContent = estudiantes.length;
+    // Mostrar conteo de estudiantes filtrado según el usuario actual (docente solo ve sus estudiantes)
+    if (studentsCountEl) {
+        const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+        if (usuarioActual && usuarioActual.tipo === 'docente') {
+            const usuarioEmail = usuarioActual.email ? usuarioActual.email.toLowerCase() : null;
+            // Mostrar únicamente los estudiantes que tienen propietario asignado
+            // y cuyo propietario coincide con el docente actual.
+            const visible = estudiantes.filter(s => s.propietarioEmail && usuarioEmail && s.propietarioEmail.toLowerCase() === usuarioEmail);
+            studentsCountEl.textContent = visible.length;
+        } else {
+            studentsCountEl.textContent = estudiantes.length;
+        }
+    }
     
     if (presentCountEl && absentCountEl) {
         const hoy = new Date().toISOString().split('T')[0];
         let presentes = 0;
         let ausentes = 0;
 
+        const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+        const esDocente = usuarioActual && usuarioActual.tipo === 'docente';
+        const usuarioEmail = usuarioActual && usuarioActual.email ? usuarioActual.email.toLowerCase() : null;
+
         asistencias.forEach(a => {
-            if (a.fecha === hoy) {
-                if(a.estado === 'presente') presentes++;
-                else if(a.estado === 'ausente') ausentes++;
+            if (a.fecha !== hoy) return;
+            // Si es docente, contar sólo las asistencias registradas por este docente
+            if (esDocente) {
+                if (!a.registradoPorEmail) return;
+                if (a.registradoPorEmail.toLowerCase() !== usuarioEmail) return;
             }
+
+            if (a.estado === 'presente') presentes++;
+            else if (a.estado === 'ausente') ausentes++;
         });
 
         presentCountEl.textContent = presentes;
@@ -291,12 +367,26 @@ if (formEstudiante) {
         
         if (isValid) {
             // Guardar el estudiante
+            const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
             const nuevo = { matricula, cedula, nombres, apellidos, email, carrera };
+
+            // Si el usuario actual es docente, asignarlo como propietario del estudiante
+            if (usuarioActual && usuarioActual.tipo === 'docente') {
+                nuevo.propietarioEmail = usuarioActual.email || null;
+                nuevo.propietarioNombre = usuarioActual.nombre || null;
+            }
             
             let estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]');
             const existe = estudiantes.find(e => e.matricula === matricula);
-            
+
+            // Si ya existe y pertenece a otro docente, bloquear creación/duplicado
             if (existe && editIndex === -1) {
+                const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+                const usuarioEmail = usuarioActual && usuarioActual.email ? usuarioActual.email.toLowerCase() : null;
+                if (existe.propietarioEmail && usuarioEmail && existe.propietarioEmail.toLowerCase() !== usuarioEmail) {
+                    mostrarError('matriculaError', `Esta matrícula ya pertenece al docente ${existe.propietarioNombre || existe.propietarioEmail}`);
+                    return;
+                }
                 mostrarError('matriculaError', 'La matrícula ya existe');
                 return;
             }
@@ -425,7 +515,7 @@ function loadStudents() {
     const fecha = fechaInput.value;
     
     if (!materiaValue || !fecha) {
-        alert('Por favor seleccione una materia y una fecha');
+        showCustomAlert('Por favor seleccione una materia y una fecha');
         return;
     }
     
@@ -439,15 +529,24 @@ function loadStudents() {
     if (estudiantes.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-light);">
+                <td colspan="4" class="empty-cell">
                     No hay estudiantes registrados
                 </td>
             </tr>
         `;
         return;
     }
-    
+    const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    const esDocente = usuarioActual && usuarioActual.tipo === 'docente';
+
     estudiantes.forEach(est => {
+        // Si el usuario es docente, solo mostrar estudiantes que tengan propietario
+        // y que pertenezcan al docente actual. Esto evita que estudiantes sin
+        // propietario sean visibles para todos los docentes.
+        if (esDocente) {
+            if (!est.propietarioEmail || !usuarioActual.email || est.propietarioEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) return;
+        }
+        
         const registroExistente = registrosExistentes.find(r => r.matricula === est.matricula);
         const estadoActual = registroExistente ? registroExistente.estado : null;
         const observacionActual = registroExistente ? registroExistente.observacion : '';
@@ -459,24 +558,22 @@ function loadStudents() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <strong>${est.nombres} ${est.apellidos}</strong>
+                ${est.nombres} ${est.apellidos}
             </td>
             <td>
                 ${est.email}
             </td>
-            <td style="text-align: center;">
-                <input type="radio" 
+            <td class="center-cell">
+                <input type="radio" class="radio-input"
                 id="radio_${est.matricula}"
                 ${estadoActual === 'ausente' ? 'checked' : ''}
-                onchange="setAttendance('${est.matricula}', 'ausente')"
-                style="width: 20px; height: 20px; cursor: pointer;">
+                onchange="setAttendance('${est.matricula}', 'ausente')">
             </td>
             <td>
-                <input type="text" 
+                <input type="text" class="obs-input"
                     id="obs_${est.matricula}"
                     placeholder="Observación / Justificación"
-                    value="${observacionActual || ''}"
-                    style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px;">
+                    value="${observacionActual || ''}">
             </td>
         `;
         tbody.appendChild(tr);
@@ -503,44 +600,96 @@ function saveAttendance() {
     const fecha = fechaInput.value;
     
     if (!materiaValue || !fecha) {
-        alert('Por favor seleccione una materia y fecha');
+        showCustomAlert('Por favor seleccione una materia y fecha');
         return;
     }
     
     const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].text;
     
-    const sinRegistro = estudiantes.filter(e => !attendanceData[e.matricula]);
-    if (sinRegistro.length > 0) {
-        if (!confirm(`Hay ${sinRegistro.length} estudiante(s) sin registrar. ¿Continuar?`)) {
-            return;
-        }
-    }
-    
-    asistencias = asistencias.filter(a => 
-        !(a.codigoMateria === materiaValue && a.fecha === fecha)
-    );
-    
-    estudiantes.forEach(est => {
-        if (attendanceData[est.matricula]) {
-            const observacionInput = document.getElementById(`obs_${est.matricula}`);
-            const observacion = observacionInput ? observacionInput.value.trim() : '';
-            
-            asistencias.push({
-                id: Date.now() + Math.random(),
-                matricula: est.matricula,
-                nombres: est.nombres,
-                apellidos: est.apellidos,
-                email: est.email,
-                materia: materiaNombre,
-                codigoMateria: materiaValue,
-                fecha: fecha,
-                estado: attendanceData[est.matricula],
-                observacion: observacion,
-                registradoPor: 'Juan Pérez',
-                fechaRegistro: new Date().toISOString()
-            });
-        }
+    // Determinar usuario actual (puede ser docente o admin)
+    const usuarioActualLocal = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    const usuarioEmailActual = usuarioActualLocal && usuarioActualLocal.email ? usuarioActualLocal.email.toLowerCase() : null;
+    const esDocenteLocal = usuarioActualLocal && usuarioActualLocal.tipo === 'docente';
+
+    // Calcular el conjunto de estudiantes visibles para este usuario (si es docente,
+    // sólo los que tienen propietario asignado y coinciden con su email)
+    const estudiantesVisibles = estudiantes.filter(e => {
+        if (!esDocenteLocal) return true;
+        return e.propietarioEmail && usuarioEmailActual && e.propietarioEmail.toLowerCase() === usuarioEmailActual;
     });
+
+    const sinRegistro = estudiantesVisibles.filter(e => !attendanceData[e.matricula]);
+
+    const procederGuardado = function(){
+        asistencias = asistencias.filter(a => 
+            !(a.codigoMateria === materiaValue && a.fecha === fecha && a.registradoPorEmail === usuarioEmailActual)
+        );
+
+        // Revisar conflictos: un estudiante no puede tener la misma materia registrada por otro docente
+        const conflictos = [];
+
+        estudiantesVisibles.forEach(est => {
+            if (attendanceData[est.matricula]) {
+                const observacionInput = document.getElementById(`obs_${est.matricula}`);
+                const observacion = observacionInput ? observacionInput.value.trim() : '';
+                const registradoPorName = usuarioActualLocal && usuarioActualLocal.nombre ? usuarioActualLocal.nombre : 'Sistema';
+
+                const conflictoExistente = asistencias.find(a => 
+                    a.matricula === est.matricula && a.codigoMateria === materiaValue && a.fecha === fecha && a.registradoPorEmail && a.registradoPorEmail !== usuarioEmailActual
+                );
+
+                if (conflictoExistente) {
+                    conflictos.push({ matricula: est.matricula, estudiante: (est.nombres + ' ' + est.apellidos), docente: conflictoExistente.registradoPor });
+                    return;
+                }
+
+                asistencias.push({
+                    id: Date.now() + Math.random(),
+                    matricula: est.matricula,
+                    nombres: est.nombres,
+                    apellidos: est.apellidos,
+                    email: est.email,
+                    materia: materiaNombre,
+                    codigoMateria: materiaValue,
+                    fecha: fecha,
+                    estado: attendanceData[est.matricula],
+                    observacion: observacion,
+                    registradoPor: registradoPorName,
+                    registradoPorEmail: usuarioEmailActual,
+                    fechaRegistro: new Date().toISOString()
+                });
+            }
+        });
+
+        if (conflictos.length > 0) {
+            const lista = conflictos.map(c => `${c.matricula} - ${c.estudiante} (registrado por: ${c.docente})`).join('\n');
+            mostrarNotificacion('Algunos estudiantes fueron omitidos porque ya están registrados por otro docente:\n' + lista, 'error');
+        }
+
+        localStorage.setItem('asistencias', JSON.stringify(asistencias));
+        mostrarNotificacion('✓ Asistencias guardadas exitosamente', 'success');
+        setTimeout(() => {
+            document.getElementById('attendanceTableBody').innerHTML = '';
+            attendanceData = {};
+            materiaSelect.selectedIndex = 0;
+            fechaInput.value = '';
+        }, 2000);
+
+        if (typeof actualizarDashboard === 'function') actualizarDashboard();
+    };
+
+    if (sinRegistro.length > 0) {
+        showCustomConfirm(`Hay ${sinRegistro.length} estudiante(s) sin registrar. ¿Continuar?`, function(){ procederGuardado(); }, function(){ /* cancel */ }, 'Atención');
+        return;
+    }
+
+    // Si no hay sin registro, proceder directamente
+    procederGuardado();
+
+    if (conflictos.length > 0) {
+        const lista = conflictos.map(c => `${c.matricula} - ${c.estudiante} (registrado por: ${c.docente})`).join('\n');
+        mostrarNotificacion('Algunos estudiantes fueron omitidos porque ya están registrados por otro docente:\n' + lista, 'error');
+    }
     
     localStorage.setItem('asistencias', JSON.stringify(asistencias));
     
@@ -583,21 +732,100 @@ function mostrarNotificacion(mensaje, tipo) {
     }
     
     const colores = {
-        success: { bg: '#d4edda', color: '#155724', border: '#c3e6cb' },
-        error: { bg: '#f8d7da', color: '#721c24', border: '#f5c6cb' },
-        info: { bg: '#d1ecf1', color: '#0c5460', border: '#bee5eb' }
+        success: 'alert-success',
+        error: 'alert-error',
+        info: 'alert-info'
     };
     
-    const estilo = colores[tipo] || colores.info;
-    notif.style.background = estilo.bg;
-    notif.style.color = estilo.color;
-    notif.style.border = `1px solid ${estilo.border}`;
+    const clase = colores[tipo] || colores.info;
+    notif.className = `notificacion ${clase} show`;
     notif.textContent = mensaje;
-    notif.style.display = 'block';
-    
-    setTimeout(() => {
-        notif.style.display = 'none';
-    }, 4000);
+
+    // Si ya había un timeout previo, lo cancelamos
+    if (notif._hideTimeout) {
+        clearTimeout(notif._hideTimeout);
+    }
+
+    // Forzar reflow para asegurar que la clase "show" se aplique
+    void notif.offsetWidth;
+
+    // Ocultar y eliminar la notificación tras 5 segundos
+    notif._hideTimeout = setTimeout(() => {
+        notif.classList.remove('show');
+        // eliminar del DOM después de una pequeña espera para permitir animación
+        setTimeout(() => {
+            if (notif.parentNode) notif.parentNode.removeChild(notif);
+        }, 300);
+    }, 5000);
+}
+
+// Modal confirm/alert personalizado (reutilizable) — usa las mismas clases que `modalCerrarSesion`
+function _ensureCustomModal() {
+    if (document.getElementById('customConfirmModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'customConfirmModal';
+    modal.className = 'modal-flotante';
+    modal.style.display = 'none';
+
+    const panel = document.createElement('div');
+    panel.className = 'modal-contenido';
+
+    const paragraph = document.createElement('p');
+    paragraph.id = 'customConfirmMessage';
+    paragraph.style.marginBottom = '12px';
+    panel.appendChild(paragraph);
+
+    const botones = document.createElement('div');
+    botones.className = 'modal-botones';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.id = 'customCancelBtn';
+    btnCancel.className = 'btn-cancelar';
+    btnCancel.textContent = 'Cancelar';
+
+    const btnOk = document.createElement('button');
+    btnOk.id = 'customOkBtn';
+    btnOk.className = 'btn-confirmar';
+    btnOk.textContent = 'Confirmar';
+
+    botones.appendChild(btnCancel);
+    botones.appendChild(btnOk);
+    panel.appendChild(botones);
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+
+    // Cerrar al hacer clic fuera
+    modal.addEventListener('click', function(e){ if (e.target === modal) { modal.style.display='none'; if (modal._onCancel) modal._onCancel(); } });
+
+    btnCancel.addEventListener('click', function(){ modal.style.display='none'; if (modal._onCancel) modal._onCancel(); });
+    btnOk.addEventListener('click', function(){ modal.style.display='none'; if (modal._onConfirm) modal._onConfirm(); });
+}
+
+function showCustomConfirm(message, onConfirm, onCancel, title) {
+    _ensureCustomModal();
+    const modal = document.getElementById('customConfirmModal');
+    document.getElementById('customConfirmMessage').textContent = message || '';
+    const cancelBtn = document.getElementById('customCancelBtn');
+    const okBtn = document.getElementById('customOkBtn');
+    cancelBtn.style.display = '';
+    okBtn.textContent = 'Confirmar';
+    modal._onConfirm = onConfirm || function(){};
+    modal._onCancel = onCancel || function(){};
+    modal.style.display = 'block';
+}
+
+function showCustomAlert(message, callback, title) {
+    _ensureCustomModal();
+    const modal = document.getElementById('customConfirmModal');
+    document.getElementById('customConfirmMessage').textContent = message || '';
+    const cancelBtn = document.getElementById('customCancelBtn');
+    const okBtn = document.getElementById('customOkBtn');
+    cancelBtn.style.display = 'none';
+    okBtn.textContent = 'Confirmar';
+    modal._onConfirm = function(){ cancelBtn.style.display = ''; if (typeof callback === 'function') callback(); };
+    modal._onCancel = function(){ cancelBtn.style.display = ''; };
+    modal.style.display = 'block';
 }
 
 // Event listener para cargar estudiantes
@@ -631,15 +859,15 @@ if (formReporte) {
         let isValid = true;
         
         if (!tipoReporte) {
-            alert('Debe seleccionar un tipo de reporte');
+            showCustomAlert('Debe seleccionar un tipo de reporte');
             isValid = false;
         }
         
         if (!fechaInicio || !fechaFin) {
-            alert('Debe seleccionar ambas fechas');
+            showCustomAlert('Debe seleccionar ambas fechas');
             isValid = false;
         } else if (new Date(fechaInicio) > new Date(fechaFin)) {
-            alert('La fecha de inicio no puede ser mayor que la fecha fin');
+            showCustomAlert('La fecha de inicio no puede ser mayor que la fecha fin');
             isValid = false;
         }
         
@@ -678,7 +906,6 @@ if (recuperarForm) {
 }
 console.log('Sistema de validaciones ULEAM cargado correctamente');
 //  AGREGAR ESTUDIANTES 
-
 // Obtener elementos
 const studentModal = document.getElementById('studentModal');
 const modalTitle = document.getElementById('modalTitle');
@@ -694,25 +921,71 @@ function cargarEstudiantes() {
         estudiantes = [];
     }
 }
-
 // Guardar en localStorage
 function guardarEstudiantes() {
     localStorage.setItem('estudiantes', JSON.stringify(estudiantes));
 }
-
+// Reparar asistencias: actualizar `registradoPor` y `registradoPorEmail` según la tabla de `materias`.
+function repararAsistenciasPorMaterias() {
+    try {
+        // Cargar datos actuales
+        cargarLocalStorage();
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        // Helper para normalizar nombres
+        const normalize = s => (s || '').toString().normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+        // Mapear codigoMateria -> docente (según `materias`)
+        const docentePorCodigo = {};
+        (materias || []).forEach(m => {
+            if (m.codigo) docentePorCodigo[m.codigo] = m.docente || null;
+        });
+        const cambios = [];
+        asistencias = JSON.parse(localStorage.getItem('asistencias') || '[]');
+        asistencias.forEach(a => {
+            const codigo = a.codigoMateria;
+            const esperado = docentePorCodigo[codigo];
+            if (esperado && normalize(a.registradoPor) !== normalize(esperado)) {
+                const previo = { registradoPor: a.registradoPor || null, registradoPorEmail: a.registradoPorEmail || null };
+                a.prevRegistradoPor = previo.registradoPor;
+                a.prevRegistradoPorEmail = previo.registradoPorEmail;
+                a.registradoPor = esperado;
+                // intentar resolver email del docente a partir de `usuarios`
+                const u = usuarios.find(x => normalize(x.nombre) === normalize(esperado) || (x.email && normalize(x.email.split('@')[0]) === normalize(esperado.split(' ')[0])) );
+                a.registradoPorEmail = u ? u.email : (a.registradoPorEmail || null);
+                a.reparado = true;
+                a.fechaReparacion = new Date().toISOString();
+                cambios.push({ id: a.id, matricula: a.matricula, codigoMateria: codigo, anterior: previo, nuevo: { registradoPor: a.registradoPor, registradoPorEmail: a.registradoPorEmail } });
+            }
+        });
+        localStorage.setItem('asistencias', JSON.stringify(asistencias));
+        console.log('Reparación de asistencias completada. Registros modificados:', cambios.length, cambios);
+        if (typeof mostrarNotificacion === 'function') mostrarNotificacion(`Reparación completada: ${cambios.length} registros actualizados`, 'success');
+        return cambios;
+    } catch (e) {
+        console.error('Error reparando asistencias:', e);
+        if (typeof mostrarNotificacion === 'function') mostrarNotificacion('Error al intentar reparar asistencias (ver consola)', 'error');
+        return null;
+    }
+}
+// Hacer disponible desde la consola
+window.repararAsistenciasPorMaterias = repararAsistenciasPorMaterias;
 // Renderizar tabla
 function renderizarTabla() {
     if (!studentTableBody) return;
     studentTableBody.innerHTML = '';
-    // aplicar filtros: bÃºsqueda y carrera
+    // aplicar filtros: búsqueda y carrera
     const searchEl = document.getElementById('searchStudent');
     const filtro = searchEl ? searchEl.value.trim().toLowerCase() : '';
     const carreraFilter = filterCarrera ? filterCarrera.value : '';
-
+    const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    const esDocente = usuarioActual && usuarioActual.tipo === 'docente';
     estudiantes.forEach((est, idx) => {
+        // Si es docente, ocultar estudiantes que no le pertenezcan o que no tengan propietario
+        if (esDocente) {
+            if (!est.propietarioEmail || !usuarioActual.email || est.propietarioEmail.toLowerCase() !== usuarioActual.email.toLowerCase()) return;
+        }
         // filtro por carrera
         if (carreraFilter && est.carrera !== carreraFilter) return;
-        // filtro por bÃºsqueda (matrÃ¬cula, nombre, apellidos, email)
+        // filtro por búsqueda (matrícula, nombre, apellidos, email)
         if (filtro) {
             const combinado = ((est.matricula || '') + ' ' + (est.nombres || '') + ' ' + (est.apellidos || '') + ' ' + (est.email || '')).toLowerCase();
             if (!combinado.includes(filtro)) return;
@@ -731,7 +1004,6 @@ function renderizarTabla() {
         studentTableBody.appendChild(tr);
     });
 }
-
 // Abrir modal para nuevo estudiante
 function nuevoEstudiante() {
     editIndex = -1;
@@ -739,20 +1011,17 @@ function nuevoEstudiante() {
     abrirModal();
     formEst.reset();
 }
-
-// Wrapper pÃºblico para compatibilidad con el HTML
+// Wrapper público para compatibilidad con el HTML
 function agregarEstudiante() {
-    // reutiliza la funciÃ³n que prepara el modal
+    // reutiliza la función que prepara el modal
     if (typeof nuevoEstudiante === 'function') return nuevoEstudiante();
 }
-
 // Abrir modal
 function abrirModal() {
     if (!studentModal) return;
     studentModal.style.display = 'flex';
     studentModal.setAttribute('aria-hidden','false');
 }
-
 // Cerrar modal
 function cerrarModal() {
     if (!studentModal) return;
@@ -760,22 +1029,19 @@ function cerrarModal() {
     studentModal.setAttribute('aria-hidden','true');
     limpiarErroresFormulario();
 }
-
 // Limpiar mensajes de error del modal
 function limpiarErroresFormulario() {
     const ids = ['matriculaError','cedulaError','nombresError','apellidosError','emailEstudianteError','telefonoError','carreraError'];
     ids.forEach(id => limpiarError(id));
 }
-
-// Buscar Ã¬ndice por matrÃ¬cula
+// Buscar índice por matrícula
 function buscarIndicePorMatricula(matricula) {
     return estudiantes.findIndex(e => e.matricula === matricula);
 }
-
-// Editar estudiante (rellena modal y cambia a modo ediciÃ³n)
+// Editar estudiante (rellena modal y cambia a modo edición)
 function editarEstudiante(matricula) {
     const idx = buscarIndicePorMatricula(matricula);
-    if (idx === -1) return alert('Estudiante no encontrado');
+    if (idx === -1) { showCustomAlert('Estudiante no encontrado'); return; }
     editIndex = idx;
     modalTitle.textContent = 'Editar Estudiante';
     abrirModal();
@@ -788,28 +1054,48 @@ function editarEstudiante(matricula) {
     document.getElementById('telefono').value = est.telefono || '';
     document.getElementById('carrera').value = est.carrera || '';
 }
-
 // Eliminar estudiante
 function eliminarEstudiante(matricula) {
-    if (!confirm('Â¿Eliminar este estudiante?')) return;
-    const idx = buscarIndicePorMatricula(matricula);
-    if (idx === -1) return alert('Estudiante no encontrado');
-    estudiantes.splice(idx,1);
-    guardarEstudiantes();
-    renderizarTabla();
-}
+    showCustomConfirm('¿Eliminar este estudiante?', function(){
+        const idx = buscarIndicePorMatricula(matricula);
+        if (idx === -1) { showCustomAlert('Estudiante no encontrado'); return; }
+        const eliminado = estudiantes.splice(idx,1)[0];
+        guardarEstudiantes();
+    // Eliminar asistencias asociadas a esta matrícula
+    try {
+        const todasAsistencias = JSON.parse(localStorage.getItem('asistencias') || '[]');
+        const antes = todasAsistencias.length;
+        const filtradas = todasAsistencias.filter(a => a.matricula !== matricula);
+        localStorage.setItem('asistencias', JSON.stringify(filtradas));
+        const eliminadas = antes - filtradas.length;
+        if (eliminadas > 0 && typeof mostrarNotificacion === 'function') mostrarNotificacion(`Se eliminaron ${eliminadas} registro(s) de asistencia asociados`, 'info');
+    } catch (e) {
+        console.error('Error limpiando asistencias al eliminar estudiante:', e);
+    }
+    // Eliminar justificaciones asociadas a esta matrícula
+    try {
+        const todasJust = JSON.parse(localStorage.getItem('justificaciones') || '[]');
+        const antesJ = todasJust.length;
+        const filtradasJ = todasJust.filter(j => j.matricula !== matricula && j.attendanceMatricula !== matricula);
+        localStorage.setItem('justificaciones', JSON.stringify(filtradasJ));
+        const eliminadasJ = antesJ - filtradasJ.length;
+        if (eliminadasJ > 0 && typeof mostrarNotificacion === 'function') mostrarNotificacion(`Se eliminaron ${eliminadasJ} justificación(es) asociadas`, 'info');
+    } catch (e) {
+        console.error('Error limpiando justificaciones al eliminar estudiante:', e);
+    }
 
+        renderizarTabla();
+        if (typeof actualizarDashboard === 'function') actualizarDashboard();
+    }, function(){ /* cancel */ }, 'Eliminar estudiante');
+}
 // Manejo del submit del formulario del modal (nuevo/editar)
 if (formEst) {
     formEst.addEventListener('submit', function(e){
         e.preventDefault();
-
         // Ejecutar las validaciones ya definidas en este archivo (reutilizan ids del formulario)
-        // Reutilizaremos la misma validaciÃ³n que ya existe: disparar submit al mismo form activarÃ¡ las comprobaciones
-
-        // Reconstruir validaciÃ³n simple: si algÃºn error visible, abortar
+        // Reutilizaremos la misma validación que ya existe: disparar submit al mismo form activará las comprobaciones
+        // Reconstruir validación simple: si algún error visible, abortar
         limpiarErroresFormulario();
-
         // Extraer valores
         const matricula = document.getElementById('matricula').value.trim();
         const cedula = document.getElementById('cedula').value.trim();
@@ -818,51 +1104,45 @@ if (formEst) {
         const email = document.getElementById('emailEstudiante').value.trim();
         const telefono = document.getElementById('telefono').value.trim();
         const carrera = document.getElementById('carrera').value;
-
         let isValid = true;
-
         if (matricula === '' || !validarMatricula(matricula)) {
             mostrarError('matriculaError', 'Matrícula obligatoria (ej. 2021-001)');
             isValid = false;
         }
-
         if (cedula === '' || !/^[0-9]{10}$/.test(cedula)) {
-            mostrarError('cedulaError', 'CÃ©dula invÃ¡lida (10 dígitos)');
+            mostrarError('cedulaError', 'Cédula inválida (10 dígitos)');
             isValid = false;
         }
-
         if (nombres === '' || !validarSoloLetras(nombres)) {
             mostrarError('nombresError', 'Nombres inválidos');
             isValid = false;
         }
-
         if (apellidos === '' || !validarSoloLetras(apellidos)) {
             mostrarError('apellidosError', 'Apellidos inválidos');
             isValid = false;
         }
-
         if (email === '' || !validarEmail(email) || !validarEmailULEAM(email)) {
             mostrarError('emailEstudianteError', 'Email institucional inválido');
             isValid = false;
         }
-
         if (telefono === '' || !validarTelefono(telefono)) {
             mostrarError('telefonoError', 'Teléfono inválido');
             isValid = false;
         }
-
         if (carrera === '') {
             mostrarError('carreraError', 'Seleccione una carrera');
             isValid = false;
         }
-
         if (!isValid) return;
-
+        const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
         const nuevo = { matricula, cedula, nombres, apellidos, email, telefono, carrera };
-
+        if (usuarioActual && usuarioActual.tipo === 'docente') {
+            nuevo.propietarioEmail = usuarioActual.email || null;
+            nuevo.propietarioNombre = usuarioActual.nombre || null;
+        }
         // Si editIndex >= 0 -> editar
         if (editIndex >= 0) {
-            // evitar duplicar matrÃ¬cula con otro registro
+            // evitar duplicar matrícula con otro registro
             const otherIdx = estudiantes.findIndex((e,i) => e.matricula === matricula && i !== editIndex);
             if (otherIdx !== -1) {
                 mostrarError('matriculaError','La matrícula ya existe para otro estudiante');
@@ -870,20 +1150,18 @@ if (formEst) {
             }
             estudiantes[editIndex] = nuevo;
         } else {
-            // nuevo: comprobar si matrÃ¬cula existe
+            // nuevo: comprobar si matrícula existe
             if (buscarIndicePorMatricula(matricula) !== -1) {
                 mostrarError('matriculaError','La matrícula ya existe');
                 return;
             }
             estudiantes.push(nuevo);
         }
-
         guardarEstudiantes();
         renderizarTabla();
         cerrarModal();
     });
 }
-
 // Inicializar al cargar la página
 document.addEventListener('DOMContentLoaded', function(){
     cargarEstudiantes();
@@ -891,15 +1169,12 @@ document.addEventListener('DOMContentLoaded', function(){
     // ocultar modal por defecto
     if (studentModal) studentModal.style.display = 'none';
 });
-
-// --- GESTIÓN DE CARRERAS: agregar, cargar, guardar y actualizar selects ---
+// GESTIÓN DE CARRERAS: agregar, cargar, guardar y actualizar selects 
 const carreraModal = document.getElementById('carreraModal');
 const formCarrera = document.getElementById('formCarrera');
 const filterCarrera = document.getElementById('filterCarrera');
 const selectCarreraInForm = document.getElementById('carrera');
-
 let carreras = [];
-
 function cargarCarreras() {
     const raw = localStorage.getItem('carreras') || '[]';
     try {
@@ -908,17 +1183,15 @@ function cargarCarreras() {
         console.error('Error parseando carreras desde localStorage', e);
         carreras = [];
     }
-    // Si no hay carreras guardadas, dejamos el array vacÃ¬o para que el select
+    // Si no hay carreras guardadas, dejamos el array vacío para que el select
     // se mantenga con la opción placeholder hasta que el usuario agregue una nueva.
     if (!carreras || !Array.isArray(carreras)) {
         carreras = [];
     }
 }
-
 function guardarCarreras() {
     localStorage.setItem('carreras', JSON.stringify(carreras));
 }
-
 function renderizarSelectCarreras() {
     // actualizar filtro
     if (filterCarrera) {
@@ -934,7 +1207,6 @@ function renderizarSelectCarreras() {
             filterCarrera.appendChild(opt);
         });
     }
-
     // actualizar select dentro del formulario de estudiante
     if (selectCarreraInForm) {
         selectCarreraInForm.innerHTML = '';
@@ -950,10 +1222,9 @@ function renderizarSelectCarreras() {
         });
     }
 }
-
 function agregarCarrera() {
     // abrir modal y limpiar
-    if (!carreraModal) return alert('Modal de carrera no encontrado');
+    if (!carreraModal) { showCustomAlert('Modal de carrera no encontrado'); return; }
     if (formCarrera) formCarrera.reset();
     // ocultar errores si existen
     limpiarError('nombreCarreraError');
@@ -961,14 +1232,12 @@ function agregarCarrera() {
     carreraModal.style.display = 'flex';
     carreraModal.setAttribute('aria-hidden','false');
 }
-
 function cerrarModalCarrera() {
     if (!carreraModal) return;
     carreraModal.style.display = 'none';
     carreraModal.setAttribute('aria-hidden','true');
     if (formCarrera) formCarrera.reset();
 }
-
 // manejar submit del formulario de carrera
 if (formCarrera) {
     formCarrera.addEventListener('submit', function(e){
@@ -982,26 +1251,23 @@ if (formCarrera) {
             mostrarError('nombreCarreraError', 'El nombre de la carrera es obligatorio');
             return;
         }
-
         // evitar duplicados (case-insensitive)
         const existe = carreras.find(c => c.nombre.toLowerCase() === nombre.trim().toLowerCase());
         if (existe) {
             mostrarError('nombreCarreraError', 'La carrera ya existe');
             return;
         }
-
         const nuevoNombre = nombre.trim();
         carreras.push({ nombre: nuevoNombre, facultad: facultad.trim() });
         guardarCarreras();
         renderizarSelectCarreras();
-        // seleccionar automÃ¡ticamente la nueva carrera en el select del formulario de estudiante
+        // seleccionar automáticamente la nueva carrera en el select del formulario de estudiante
         if (selectCarreraInForm) selectCarreraInForm.value = nuevoNombre;
         cerrarModalCarrera();
         // re-render tabla por si se estaba filtrando
         renderizarTabla();
     });
 }
-
 // Cerrar modal de carrera al hacer clic fuera del contenido
 if (carreraModal) {
     carreraModal.addEventListener('click', function(e){
@@ -1009,22 +1275,19 @@ if (carreraModal) {
         if (e.target === carreraModal) cerrarModalCarrera();
     });
 }
-
 // aplicar filtro cuando cambie el select
 if (filterCarrera) {
     filterCarrera.addEventListener('change', function(){
         renderizarTabla();
     });
 }
-
-// Asegurar que al cargar la pÃ¡gina tambiÃ©n carguen las carreras y actualicen selects
+// Asegurar que al cargar la página también carguen las carreras y actualicen selects
 document.addEventListener('DOMContentLoaded', function(){
     cargarCarreras();
     renderizarSelectCarreras();
     // ocultar modal de carreras si existe
     if (carreraModal) carreraModal.style.display = 'none';
 });
-
 // actualizar tabla al escribir en el buscador
 const searchStudentInput = document.getElementById('searchStudent');
 if (searchStudentInput) {
@@ -1035,7 +1298,6 @@ if (searchStudentInput) {
 // Inicializar carreras predeterminadas si no existen
 function inicializarCarrerasPredeterminadas() {
     let carreras = JSON.parse(localStorage.getItem('carreras') || '[]');
-    
     if (carreras.length === 0) {
         // Carreras predeterminadas de ULEAM
         carreras = [
@@ -1048,13 +1310,10 @@ function inicializarCarrerasPredeterminadas() {
             { nombre: 'Medicina', facultad: 'Facultad de Ciencias de la Salud' },
             { nombre: 'Administración de Empresas', facultad: 'Facultad de Ciencias Administrativas' }
         ];
-        
         localStorage.setItem('carreras', JSON.stringify(carreras));
     }
-    
     return carreras;
 }
-
 // Llamar esta función al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     inicializarCarrerasPredeterminadas();
@@ -1062,12 +1321,10 @@ document.addEventListener('DOMContentLoaded', function() {
     renderizarSelectCarreras();
 });
 // AGREGAR MATERIAS 
-
 const materiaModal = document.getElementById('materiaModal');
 const modalTitleMateria = document.getElementById('modalTitleMateria');
 const formMat = document.getElementById('formMateria');
 const materiaTableBody = document.getElementById('materiaTableBody');
-
 // Cargar materias desde localStorage
 function cargarMaterias() {
     const raw = localStorage.getItem('materias') || '[]';
@@ -1078,12 +1335,10 @@ function cargarMaterias() {
         materias = [];
     }
 }
-
 // Guardar materias en localStorage
 function guardarMaterias() {
     localStorage.setItem('materias', JSON.stringify(materias));
 }
-
 // Renderizar tabla
 function renderizarTablaMaterias() {
     if (!materiaTableBody) return;
@@ -1102,28 +1357,22 @@ function renderizarTablaMaterias() {
         materiaTableBody.appendChild(tr);
     });
 }
-
 // Función de búsqueda de materias
 function buscarMaterias() {
     if (!materiaTableBody) return;
-    
     const searchInput = document.getElementById('searchMateria')?.value.toLowerCase() || '';
     const filterNivel = document.getElementById('filterNivel')?.value || '';
-    
     materiaTableBody.innerHTML = '';
-    
     const filtradas = materias.filter(mat => {
         const coincideNombre = mat.nombre.toLowerCase().includes(searchInput) || 
                                mat.codigo.toLowerCase().includes(searchInput);
         const coincideNivel = !filterNivel || mat.nivel === filterNivel;
         return coincideNombre && coincideNivel;
     });
-    
     if (filtradas.length === 0) {
-        materiaTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light);">No se encontraron materias</td></tr>';
+        materiaTableBody.innerHTML = '<tr><td colspan="4" class="empty-cell">No se encontraron materias</td></tr>';
         return;
     }
-    
     filtradas.forEach((mat, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1138,7 +1387,6 @@ function buscarMaterias() {
         materiaTableBody.appendChild(tr);
     });
 }
-
 // Abrir modal para nueva materia
 function nuevaMateria() {
     editMateriaIndex = -1;
@@ -1147,14 +1395,12 @@ function nuevaMateria() {
     formMat.reset();
     limpiarErroresMateria();
 }
-
 // Abrir modal
 function abrirModalMateria() {
     if (!materiaModal) return;
     materiaModal.style.display = 'flex';
     materiaModal.setAttribute('aria-hidden','false');
 }
-
 // Cerrar modal
 function cerrarModalMateria() {
     if (!materiaModal) return;
@@ -1162,7 +1408,6 @@ function cerrarModalMateria() {
     materiaModal.setAttribute('aria-hidden','true');
     limpiarErroresMateria();
 }
-
 // Limpiar errores del formulario
 function limpiarErroresMateria() {
     const ids = ['codigoMateriaError','nombreMateriaError','nivelMateriaError','creditosMateriaError','docenteMateriaError'];
@@ -1171,8 +1416,7 @@ function limpiarErroresMateria() {
         if (el) { el.textContent = ''; el.style.display='none'; }
     });
 }
-
-// Buscar Ã¬ndice por cÃ³digo de materia
+// Buscar índice por código de materia
 function buscarIndiceMateria(codigo) {
     return materias.findIndex(m => m.codigo === codigo);
 }
@@ -1180,7 +1424,7 @@ function buscarIndiceMateria(codigo) {
 // Editar materia
 function editarMateria(codigo) {
     const idx = buscarIndiceMateria(codigo);
-    if (idx === -1) return alert('Materia no encontrada');
+    if (idx === -1) { showCustomAlert('Materia no encontrada'); return; }
     editMateriaIndex = idx;
     modalTitleMateria.textContent = 'Editar Materia';
     abrirModalMateria();
@@ -1194,12 +1438,13 @@ function editarMateria(codigo) {
 
 // Eliminar materia
 function eliminarMateria(codigo) {
-    if (!confirm('¿Eliminar esta materia?')) return;
-    const idx = buscarIndiceMateria(codigo);
-    if (idx === -1) return alert('Materia no encontrada');
-    materias.splice(idx,1);
-    guardarMaterias();
-    renderizarTablaMaterias();
+    showCustomConfirm('¿Eliminar esta materia?', function(){
+        const idx = buscarIndiceMateria(codigo);
+        if (idx === -1) { showCustomAlert('Materia no encontrada'); return; }
+        materias.splice(idx,1);
+        guardarMaterias();
+        renderizarTablaMaterias();
+    }, function(){ /* cancel */ }, 'Eliminar materia');
 }
 
 // Manejo submit del formulario (nuevo/editar)
@@ -1233,7 +1478,7 @@ if (formMat) {
             mostrarError('creditosMateriaError','Créditos entre 1 y200');
             isValid = false;
         }
-        if (docente === '' || !/^[a-zA-ZÃ¡Ã©Ã-Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘\s]+$/.test(docente)) {
+        if (docente === '' || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(docente)) {
             mostrarError('docenteMateriaError','Nombre de docente inválido');
             isValid = false;
         }
@@ -1351,7 +1596,35 @@ function cargarMaterias() {
 // Cargar asistencias del estudiante
 function cargarAsistenciasEstudiante() {
     const allAsistencias = JSON.parse(localStorage.getItem('asistencias') || '[]');
-    asistencias = allAsistencias.filter(a => a.matricula === currentStudent.matricula);
+    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+    // Mapear código de materia -> docente (según `materias`)
+    const docentePorCodigo = {};
+    (materias || []).forEach(m => { if (m.codigo) docentePorCodigo[m.codigo] = m.docente || null; });
+
+    asistencias = allAsistencias.filter(a => a.matricula === currentStudent.matricula)
+        .filter(a => {
+            const esperado = docentePorCodigo[a.codigoMateria];
+            if (!esperado) return true; // si no hay docente asignado en materias, mantener el registro
+
+            // Si el docente esperado parece un email, comparar con registradoPorEmail
+            if (esperado.includes && esperado.includes('@')) {
+                return a.registradoPorEmail && a.registradoPorEmail.toLowerCase() === esperado.toLowerCase();
+            }
+
+            // Intentar resolver email del docente por nombre
+            const u = usuarios.find(u => u.nombre && u.nombre.toLowerCase() === esperado.toLowerCase());
+            if (u && u.email) {
+                return a.registradoPorEmail && a.registradoPorEmail.toLowerCase() === u.email.toLowerCase();
+            }
+
+            // Como fallback comparar por nombre registrado
+            if (a.registradoPor) {
+                return a.registradoPor.toLowerCase() === (esperado || '').toLowerCase();
+            }
+
+            // Si no se puede determinar, mantener el registro (no agresivo)
+            return true;
+        });
 }
 
 // Cargar justificaciones del estudiante
@@ -1443,14 +1716,14 @@ function renderAttendanceTable() {
             !justificaciones.some(j => j.attendanceId === a.id);
 
         tr.innerHTML = `
-            <td>${new Date(a.fecha).toLocaleDateString('es-EC')}</td>
+            <td>${formatYMD(a.fecha)}</td>
             <td>${a.materia}</td>
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td>
                 ${canJustify ? 
                     `<button class="btn-justify" onclick="openJustifyModal(${a.id})">Justificar</button>` : 
                     a.estado === 'ausente' ? 
-                    '<span style="color: var(--text-light);">Ya justificada</span>' : 
+                    '<span class="text-light">Ya justificada</span>' : 
                     '-'
                 }
             </td>
@@ -1475,11 +1748,29 @@ function getFilteredAttendance() {
     const materiaFilter = document.getElementById('filterMateria')?.value || '';
     const estadoFilter = document.getElementById('filterEstado')?.value || '';
 
+    // Si el usuario actual es docente, mostrar sólo las asistencias que él registró
+    const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    const esDocente = usuarioActual && usuarioActual.tipo === 'docente';
+    const usuarioEmail = usuarioActual && usuarioActual.email ? usuarioActual.email.toLowerCase() : null;
+    const usuarioNombre = usuarioActual && usuarioActual.nombre ? usuarioActual.nombre.toLowerCase() : null;
+
     return asistencias.filter(a => {
+        if (esDocente) {
+            // Mostrar sólo si fue registrado por el docente actual (por email o por nombre)
+            if (a.registradoPorEmail && usuarioEmail) {
+                if (a.registradoPorEmail.toLowerCase() !== usuarioEmail) return false;
+            } else if (a.registradoPor && usuarioNombre) {
+                if (a.registradoPor.toLowerCase() !== usuarioNombre) return false;
+            } else {
+                // no mostrar registros sin responsable claro a docentes
+                return false;
+            }
+        }
+
         if (materiaFilter && a.materia !== materiaFilter) return false;
         if (estadoFilter && a.estado !== estadoFilter) return false;
         return true;
-    }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    }).sort((a, b) => (parseYMD(b.fecha) || 0) - (parseYMD(a.fecha) || 0));
 }
 
 // Filtrar asistencias
@@ -1527,11 +1818,11 @@ function renderJustificacionesTable() {
             };
             
             tr.innerHTML = `
-                <td>${new Date(j.fechaFalta).toLocaleDateString('es-EC')}</td>
+                <td>${formatYMD(j.fechaFalta)}</td>
                 <td>${j.materia}</td>
                 <td>${j.tipo.charAt(0).toUpperCase() + j.tipo.slice(1)}</td>
                 <td>${j.motivo.substring(0, 50)}${j.motivo.length > 50 ? '...' : ''}</td>
-                <td><span class="status-badge" style="background: ${statusColors[j.estado]}">
+                <td><span class="status-badge status-${j.estado}">
                     ${j.estado.charAt(0).toUpperCase() + j.estado.slice(1)}
                 </span></td>
                 <td>${new Date(j.fechaSolicitud).toLocaleDateString('es-EC')}</td>
@@ -1548,7 +1839,7 @@ function openJustifyModal(attendanceId) {
 
     document.getElementById('justifyAttendanceId').value = id;
     document.getElementById('justifyMateria').value = attendance.materia;
-    document.getElementById('justifyFecha').value = new Date(attendance.fecha).toLocaleDateString('es-EC');
+    document.getElementById('justifyFecha').value = formatYMD(attendance.fecha);
     document.getElementById('justifyTipo').value = '';
     document.getElementById('justifyMotivo').value = '';
     document.getElementById('fileInput').value = '';
@@ -1574,7 +1865,7 @@ function handleFileSelect(event) {
     if (file) {
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
-            alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+            showCustomAlert('El archivo es demasiado grande. Tamaño máximo: 5MB');
             event.target.value = '';
             return;
         }
@@ -1582,8 +1873,18 @@ function handleFileSelect(event) {
     }
 }
 
+// Leer archivo como Data URL (promise)
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+}
+
 // Enviar justificación
-function submitJustification(event) {
+async function submitJustification(event) {
     event.preventDefault();
 
     const attendanceId = parseFloat(document.getElementById('justifyAttendanceId').value);
@@ -1592,16 +1893,33 @@ function submitJustification(event) {
     const file = document.getElementById('fileInput').files[0];
 
     if (!tipo || !motivo) {
-        alert('Por favor complete todos los campos obligatorios');
+        showCustomAlert('Por favor complete todos los campos obligatorios');
         return;
     }
 
     const attendance = asistencias.find(a => a.id === attendanceId || a.id == attendanceId);
     if (!attendance) {
-        alert('Error: No se encontró la asistencia');
+        showCustomAlert('Error: No se encontró la asistencia');
         return;
     }
-    
+
+    let archivoNombre = null;
+    let archivoData = null;
+    if (file) {
+        archivoNombre = file.name;
+        try {
+            // Guardar data solo si es pequeño para no saturar localStorage
+            if (file.size <= 2 * 1024 * 1024) {
+                archivoData = await readFileAsDataURL(file);
+            } else {
+                archivoData = null;
+            }
+        } catch (e) {
+            console.error('Error leyendo archivo', e);
+            archivoData = null;
+        }
+    }
+
     const justificacion = {
         id: Date.now(),
         attendanceId: attendanceId,
@@ -1612,9 +1930,12 @@ function submitJustification(event) {
         materia: attendance.materia,
         codigoMateria: attendance.codigoMateria,
         fechaFalta: attendance.fecha,
+        registradoPor: attendance.registradoPor || null,
+        registradoPorEmail: attendance.registradoPorEmail || null,
         tipo: tipo,
         motivo: motivo,
-        archivo: file ? file.name : null,
+        archivo: archivoNombre,
+        archivoData: archivoData,
         estado: 'pendiente',
         fechaSolicitud: new Date().toISOString(),
         observaciones: null
@@ -1628,7 +1949,7 @@ function submitJustification(event) {
     // Crear notificación para el docente
     crearNotificacionDocente(justificacion);
 
-    alert('Justificación enviada exitosamente. El docente la revisará pronto.');
+    showCustomAlert('Justificación enviada exitosamente. El docente la revisará pronto.');
     
     closeJustifyModal();
     
@@ -1664,8 +1985,7 @@ function showSection(section) {
     }
 }
 
-// ========== FUNCIONES DE NOTIFICACIONES PARA EL DOCENTE ==========
-
+// FUNCIONES DE NOTIFICACIONES PARA EL DOCENTE
 // Abrir modal de notificaciones
 function abrirNotificaciones() {
     const modal = document.getElementById('modalNotificaciones');
@@ -1686,13 +2006,31 @@ function cerrarNotificaciones() {
 // Cargar y mostrar notificaciones del docente
 function cargarNotificacionesDocente() {
     const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
-    const notificacionesPendientes = notificaciones.filter(n => n.estado === 'no_leida');
+    const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    // Normalizar texto (quita tildes, deja minúsculas)
+    function norm(str) {
+        if (!str) return '';
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+    // Filtrar notificaciones dirigidas al docente actual (o broadcast)
+    const notificacionesPendientes = notificaciones.filter(n => {
+        if (n.estado !== 'no_leida') return false;
+        if (!usuarioActual) return false;
+        if (n.broadcast) return true; // mostrar broadcast a todos los docentes
+        // Preferir coincidencia por email si está disponible
+        if (n.destinatarioEmail && usuarioActual.email && n.destinatarioEmail.toLowerCase() === usuarioActual.email.toLowerCase()) return true;
+        // Permitir coincidencia por nombre del docente (cuando no se pudo resolver email)
+        if (n.destinatarioNombre && usuarioActual.nombre && norm(n.destinatarioNombre) === norm(usuarioActual.nombre)) return true;
+        // Permitir coincidencia parcial (nombre contenido)
+        if (n.destinatarioNombre && usuarioActual.nombre && norm(usuarioActual.nombre).includes(norm(n.destinatarioNombre))) return true;
+        return false;
+    });
     const notificacionesList = document.getElementById('notificacionesList');
     
     if (!notificacionesList) return;
     
     if (notificacionesPendientes.length === 0) {
-        notificacionesList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay notificaciones pendientes</p>';
+        notificacionesList.innerHTML = '<p class="empty-cell">No hay notificaciones pendientes</p>';
         return;
     }
     
@@ -1700,13 +2038,13 @@ function cargarNotificacionesDocente() {
     
     notificacionesPendientes.forEach(notif => {
         const div = document.createElement('div');
-        div.style.cssText = 'background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #3498db; cursor: pointer;';
+        div.className = 'notification-card';
         div.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; color: #2c3e50;">${notif.titulo}</h4>
-            <p style="margin: 0 0 8px 0; color: #555; font-size: 14px;">${notif.mensaje}</p>
-            <small style="color: var(--text-light);">📅 ${new Date(notif.fechaCreacion).toLocaleString('es-EC')}</small>
-            <div style="margin-top: 10px;">
-                <button class="btn-primary" onclick="abrirRevisarJustificacion(${JSON.stringify(notif.detalles).replace(/"/g, '&quot;')}, ${notif.id})" style="padding: 8px 16px; font-size: 13px;">
+            <h4 class="notif-title">${notif.titulo}</h4>
+            <p class="notif-message">${notif.mensaje}</p>
+            <small class="notif-date">📅 ${new Date(notif.fechaCreacion).toLocaleString('es-EC')}</small>
+            <div class="notif-actions">
+                <button class="btn-primary btn-small" onclick="abrirRevisarJustificacion(${JSON.stringify(notif.detalles).replace(/"/g, '&quot;')}, ${notif.id})">
                     Ver Justificación
                 </button>
             </div>
@@ -1721,15 +2059,25 @@ function cargarNotificacionesDocente() {
 // Actualizar badge de notificaciones
 function actualizarBadgeNotificaciones() {
     const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
-    const pendientes = notificaciones.filter(n => n.estado === 'no_leida').length;
+    const usuarioActual = JSON.parse(localStorage.getItem('usuarioActual') || 'null');
+    function norm(str) { if (!str) return ''; return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+    const pendientes = notificaciones.filter(n => {
+        if (n.estado !== 'no_leida') return false;
+        if (!usuarioActual) return false;
+        if (n.broadcast) return true;
+        if (n.destinatarioEmail && usuarioActual.email && n.destinatarioEmail.toLowerCase() === usuarioActual.email.toLowerCase()) return true;
+        if (n.destinatarioNombre && usuarioActual.nombre && norm(n.destinatarioNombre) === norm(usuarioActual.nombre)) return true;
+        if (n.destinatarioNombre && usuarioActual.nombre && norm(usuarioActual.nombre).includes(norm(n.destinatarioNombre))) return true;
+        return false;
+    }).length;
     const badge = document.getElementById('badgeNotificaciones');
     
     if (badge) {
         if (pendientes > 0) {
             badge.textContent = pendientes;
-            badge.style.display = 'inline-block';
+            badge.classList.add('badge-active');
         } else {
-            badge.style.display = 'none';
+            badge.classList.remove('badge-active');
         }
     }
 }
@@ -1739,10 +2087,45 @@ function abrirRevisarJustificacion(detalles, notificacionId) {
     document.getElementById('revNombre').textContent = `${detalles.estudianteNombres} ${detalles.estudianteApellidos}`;
     document.getElementById('revEmail').textContent = detalles.estudianteEmail;
     document.getElementById('revMateria').textContent = detalles.materia;
-    document.getElementById('revFecha').textContent = new Date(detalles.fechaFalta).toLocaleDateString('es-EC');
-    document.getElementById('revTipo').textContent = detalles.tipoJustificacion;
+    document.getElementById('revFecha').textContent = formatYMD(detalles.fechaFalta);
+    const tipoText = detalles && detalles.tipoJustificacion ? (detalles.tipoJustificacion.charAt(0).toUpperCase() + detalles.tipoJustificacion.slice(1)) : '';
+    document.getElementById('revTipo').textContent = tipoText;
     document.getElementById('revMotivo').textContent = detalles.motivo;
     document.getElementById('revFechaSolicitud').textContent = new Date(new Date().toISOString()).toLocaleString('es-EC');
+    // Mostrar archivo si existe
+    const revArchivoEl = document.getElementById('revArchivo');
+    if (revArchivoEl) {
+        revArchivoEl.innerHTML = '';
+        if (detalles.archivoData) {
+            const a = document.createElement('a');
+            a.href = detalles.archivoData;
+            a.download = detalles.archivo || 'archivo';
+            a.textContent = detalles.archivo || 'Descargar archivo';
+            a.target = '_blank';
+            revArchivoEl.appendChild(a);
+
+            // Mostrar visor embebido (iframe) si el navegador lo permite
+            // Eliminamos visores previos si existen
+            const existingViewer = document.getElementById('revArchivoViewer');
+            if (existingViewer) existingViewer.remove();
+
+            const iframe = document.createElement('iframe');
+            iframe.id = 'revArchivoViewer';
+            iframe.src = detalles.archivoData;
+            iframe.style.width = '100%';
+            iframe.style.height = '420px';
+            iframe.style.border = '1px solid #ccc';
+            iframe.style.marginTop = '10px';
+            // Algunas data URLs requieren sandboxing; si no carga, el usuario puede descargar
+            revArchivoEl.appendChild(iframe);
+        } else if (detalles.archivo) {
+            const span = document.createElement('span');
+            span.textContent = detalles.archivo + ' (archivo guardado sin contenido)';
+            revArchivoEl.appendChild(span);
+        } else {
+            revArchivoEl.textContent = 'No hay archivo adjunto';
+        }
+    }
     
     // Guardar el ID de justificación actual
     document.getElementById('modalRevisarJustificacion').dataset.justificacionId = detalles.justificacionId;
@@ -1825,7 +2208,48 @@ function actualizarEstadoNotificacion(notificacionId, nuevoEstado) {
 // Crear notificación para el docente cuando se justifica una falta
 function crearNotificacionDocente(justificacion) {
     const notificaciones = JSON.parse(localStorage.getItem('notificacionesDocente') || '[]');
-    
+
+    // Intentar resolver el docente responsable a partir de la materia
+    let destinatarioEmail = null;
+    let destinatarioNombre = null;
+    try {
+        const materias = JSON.parse(localStorage.getItem('materias') || '[]');
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        // Preferir destinatario basado en quien registró la falta (registradoPorEmail o registradoPor)
+        if (justificacion.registradoPorEmail) {
+            destinatarioEmail = justificacion.registradoPorEmail;
+            // intentar resolver nombre desde usuarios
+            const uByEmail = usuarios.find(x => x.email && x.email.toLowerCase() === destinatarioEmail.toLowerCase());
+            if (uByEmail && uByEmail.nombre) destinatarioNombre = uByEmail.nombre;
+        } else if (justificacion.registradoPor) {
+            destinatarioNombre = justificacion.registradoPor;
+            // buscar usuario por nombre
+            const uByName = usuarios.find(x => x.nombre && x.nombre.toLowerCase() === destinatarioNombre.toLowerCase());
+            if (uByName && uByName.email) destinatarioEmail = uByName.email;
+            // si el registradoPor parece un email, úsalo
+            if (destinatarioNombre.includes('@')) destinatarioEmail = destinatarioNombre;
+        }
+
+        // Si no se obtuvo destinatario desde registradoPor, resolver por materia como antes
+        if (!destinatarioEmail && !destinatarioNombre) {
+            const mat = materias.find(m => (m.codigo && m.codigo === justificacion.codigoMateria) || (m.nombre && m.nombre === justificacion.materia));
+            if (mat && mat.docente) {
+                destinatarioNombre = mat.docente;
+                if (mat.docente.includes('@')) {
+                    destinatarioEmail = mat.docente;
+                } else {
+                    const u = usuarios.find(x => x.nombre && x.nombre.toLowerCase() === mat.docente.toLowerCase());
+                    if (u && u.email) destinatarioEmail = u.email;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error resolviendo docente para notificación', e);
+    }
+
+    // Si no pudimos resolver destinatario, convertir en broadcast para que lo vea cualquier docente
+    const isBroadcast = !destinatarioEmail && !destinatarioNombre;
+
     const notificacion = {
         id: Date.now(),
         tipo: 'justificacion_pendiente',
@@ -1840,15 +2264,21 @@ function crearNotificacionDocente(justificacion) {
             fechaFalta: justificacion.fechaFalta,
             tipoJustificacion: justificacion.tipo,
             motivo: justificacion.motivo,
-            justificacionId: justificacion.id
+            justificacionId: justificacion.id,
+            archivo: justificacion.archivo || null,
+            archivoData: justificacion.archivoData || null
         },
+        destinatarioEmail: destinatarioEmail,
+        destinatarioNombre: destinatarioNombre,
+        broadcast: isBroadcast,
         estado: 'no_leida',
         fechaCreacion: new Date().toISOString(),
         accion: 'revisar_justificacion'
     };
-    
+
     notificaciones.push(notificacion);
     localStorage.setItem('notificacionesDocente', JSON.stringify(notificaciones));
+    console.log('Notificación creada:', { id: notificacion.id, destinatarioEmail, destinatarioNombre, broadcast: notificacion.broadcast });
 }
 
 // Generar Reportes
@@ -1864,7 +2294,7 @@ function generarReporte(tipoReporte, fechaInicio, fechaFin) {
     });
     
     if (asistenciasEnRango.length === 0) {
-        alert('No hay datos para generar el reporte en el rango de fechas seleccionado');
+        showCustomAlert('No hay datos para generar el reporte en el rango de fechas seleccionado');
         return;
     }
     
@@ -2131,4 +2561,382 @@ function generarReporteGeneralPDF(doc, asistencias, yStart) {
 // Cerrar sesión (usar la función global ya definida)
 function logout() {
     cerrarSesion();
+}
+
+// FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN 
+
+// Exportar asistencias a JSON
+function exportarJSON() {
+    cargarLocalStorage();
+    
+    if (asistencias.length === 0) {
+        showCustomAlert('No hay asistencias para exportar');
+        return;
+    }
+    
+    const datos = {
+        fecha_exportacion: new Date().toISOString(),
+        total_registros: asistencias.length,
+        asistencias: asistencias
+    };
+    
+    const jsonString = JSON.stringify(datos, null, 2);
+    descargarArchivo(jsonString, `asistencias_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+    
+    mostrarNotificacion('✓ Archivo JSON exportado exitosamente', 'success');
+}
+
+// Exportar asistencias a XML
+function exportarXML() {
+    cargarLocalStorage();
+    
+    if (asistencias.length === 0) {
+        showCustomAlert('No hay asistencias para exportar');
+        return;
+    }
+    
+    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xmlString += '<asistencias>\n';
+    xmlString += `\t<fecha_exportacion>${new Date().toISOString()}</fecha_exportacion>\n`;
+    xmlString += `\t<total_registros>${asistencias.length}</total_registros>\n`;
+    xmlString += '\t<registros>\n';
+    
+    asistencias.forEach(asistencia => {
+        xmlString += '\t\t<registro>\n';
+        xmlString += `\t\t\t<id>${escapeXML(asistencia.id)}</id>\n`;
+        xmlString += `\t\t\t<matricula>${escapeXML(asistencia.matricula)}</matricula>\n`;
+        xmlString += `\t\t\t<nombres>${escapeXML(asistencia.nombres)}</nombres>\n`;
+        xmlString += `\t\t\t<apellidos>${escapeXML(asistencia.apellidos)}</apellidos>\n`;
+        xmlString += `\t\t\t<email>${escapeXML(asistencia.email)}</email>\n`;
+        xmlString += `\t\t\t<materia>${escapeXML(asistencia.materia)}</materia>\n`;
+        xmlString += `\t\t\t<codigo_materia>${escapeXML(asistencia.codigoMateria)}</codigo_materia>\n`;
+        xmlString += `\t\t\t<fecha>${escapeXML(asistencia.fecha)}</fecha>\n`;
+        xmlString += `\t\t\t<estado>${escapeXML(asistencia.estado)}</estado>\n`;
+        xmlString += `\t\t\t<observacion>${escapeXML(asistencia.observacion || '')}</observacion>\n`;
+        xmlString += `\t\t\t<registrado_por>${escapeXML(asistencia.registradoPor)}</registrado_por>\n`;
+        xmlString += `\t\t\t<fecha_registro>${escapeXML(asistencia.fechaRegistro)}</fecha_registro>\n`;
+        xmlString += '\t\t</registro>\n';
+    });
+    
+    xmlString += '\t</registros>\n';
+    xmlString += '</asistencias>';
+    
+    descargarArchivo(xmlString, `asistencias_${new Date().toISOString().split('T')[0]}.xml`, 'application/xml');
+    
+    mostrarNotificacion('✓ Archivo XML exportado exitosamente', 'success');
+}
+
+// Función auxiliar para escapar caracteres XML
+function escapeXML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+// Función para descargar archivo
+function descargarArchivo(contenido, nombreArchivo, tipo) {
+    const blob = new Blob([contenido], { type: tipo });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+// Importar datos desde JSON o XML
+function importarArchivo(event) {
+    const archivo = event.target.files[0];
+    
+            if (!archivo) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const contenido = e.target.result;
+            const extension = archivo.name.split('.').pop().toLowerCase();
+            
+            if (extension === 'json') {
+                importarJSON(contenido);
+            } else if (extension === 'xml') {
+                importarXML(contenido);
+            } else {
+                showCustomAlert('Formato de archivo no soportado. Usa JSON o XML');
+            }
+        } catch (error) {
+            console.error('Error al importar:', error);
+            showCustomAlert('Error al procesar el archivo: ' + error.message);
+        }
+    };
+    
+    reader.readAsText(archivo);
+    
+    // Limpiar el input para permitir importar el mismo archivo nuevamente
+    event.target.value = '';
+}
+
+// Importar datos desde JSON
+function importarJSON(contenido) {
+    try {
+        const datos = JSON.parse(contenido);
+        // Asegurarse de tener materias/estudiantes cargados
+        cargarLocalStorage();
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        const docentePorCodigo = {};
+        (materias || []).forEach(m => { if (m.codigo) docentePorCodigo[m.codigo] = m.docente || null; });
+        
+        if (!datos.asistencias || !Array.isArray(datos.asistencias)) {
+            throw new Error('Formato JSON inválido. Debe contener un array "asistencias"');
+        }
+        
+        showCustomConfirm(`Se importarán ${datos.asistencias.length} registros de asistencia. ¿Deseas continuar?`, function(){
+            // continuar con la importación
+            let importados = 0;
+            let reparados = 0;
+            let omitidos = [];
+
+            datos.asistencias.forEach(reg => {
+                const existe = asistencias.find(a => a.matricula === reg.matricula && a.fecha === reg.fecha && a.codigoMateria === reg.codigoMateria);
+
+                if (existe) {
+                    const esperado = docentePorCodigo[reg.codigoMateria];
+                    if (esperado && existe.registradoPor && existe.registradoPor !== esperado && existe.registradoPor !== reg.registradoPor) {
+                        omitidos.push({ motivo: 'conflicto_existente', registro: reg, existente: existe });
+                        return;
+                    }
+                    omitidos.push({ motivo: 'duplicado', registro: reg });
+                    return;
+                }
+
+                const esperado = docentePorCodigo[reg.codigoMateria];
+                if (esperado && reg.registradoPor && reg.registradoPor !== esperado) {
+                    reg.prevRegistradoPor = reg.registradoPor;
+                    reg.registradoPor = esperado;
+                    const u = usuarios.find(x => (x.nombre && x.nombre.toLowerCase() === esperado.toLowerCase()) || (x.email && x.email.split('@')[0].toLowerCase() === esperado.split(' ')[0].toLowerCase()));
+                    if (u) reg.registradoPorEmail = u.email;
+                    reg.reparado = true;
+                    reparados++;
+                }
+
+                asistencias.push(reg);
+                importados++;
+            });
+
+            localStorage.setItem('asistencias', JSON.stringify(asistencias));
+
+            let mensaje = `Importados: ${importados}`;
+            if (reparados) mensaje += `, Reparados: ${reparados}`;
+            if (omitidos.length) mensaje += `, Omitidos: ${omitidos.length}`;
+            mostrarNotificacion(`✓ ${mensaje}`, 'success');
+            if (omitidos.length) console.warn('Registros omitidos en importación:', omitidos);
+        }, function(){ /* cancel */ });
+        
+        
+    } catch (error) {
+                showCustomAlert('Error al importar JSON: ' + error.message);
+    }
+}
+
+// Importar datos desde XML
+function importarXML(contenido) {
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(contenido, 'application/xml');
+
+        if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+            throw new Error('Formato XML inválido');
+        }
+
+        const registros = xmlDoc.getElementsByTagName('registro');
+        if (registros.length === 0) {
+            throw new Error('No se encontraron registros en el archivo XML');
+        }
+
+        // Preparar mapas auxiliares
+        cargarLocalStorage();
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        const docentePorCodigo = {};
+        (materias || []).forEach(m => { if (m.codigo) docentePorCodigo[m.codigo] = m.docente || null; });
+
+        showCustomConfirm(`Se importarán ${registros.length} registros de asistencia. ¿Deseas continuar?`, function(){
+            let registrosImportados = 0;
+            let omitidos = [];
+
+            for (let i = 0; i < registros.length; i++) {
+                const registro = registros[i];
+
+                const getElementValue = (elementName) => {
+                    const elements = registro.getElementsByTagName(elementName);
+                    return elements.length > 0 ? elements[0].textContent : '';
+                };
+
+                const nuevoRegistro = {
+                    id: getElementValue('id') || Date.now() + Math.random(),
+                    matricula: getElementValue('matricula'),
+                    nombres: getElementValue('nombres'),
+                    apellidos: getElementValue('apellidos'),
+                    email: getElementValue('email'),
+                    materia: getElementValue('materia'),
+                    codigoMateria: getElementValue('codigo_materia'),
+                    fecha: getElementValue('fecha'),
+                    estado: getElementValue('estado'),
+                    observacion: getElementValue('observacion'),
+                    registradoPor: getElementValue('registrado_por'),
+                    fechaRegistro: getElementValue('fecha_registro') || new Date().toISOString()
+                };
+
+                // Verificar si ya existe un registro similar
+                const existente = asistencias.find(a => 
+                    a.matricula === nuevoRegistro.matricula && 
+                    a.fecha === nuevoRegistro.fecha && 
+                    a.codigoMateria === nuevoRegistro.codigoMateria
+                );
+
+                if (existente) {
+                    const esperado = docentePorCodigo[nuevoRegistro.codigoMateria];
+                    if (esperado && existente.registradoPor && existente.registradoPor !== esperado && existente.registradoPor !== nuevoRegistro.registradoPor) {
+                        omitidos.push({ motivo: 'conflicto_existente', registro: nuevoRegistro, existente });
+                        continue;
+                    }
+                    // duplicado
+                    omitidos.push({ motivo: 'duplicado', registro: nuevoRegistro });
+                    continue;
+                }
+
+                // No existe: si la materia tiene docente y difiere del registrado en el archivo, corregirlo
+                const esperado = docentePorCodigo[nuevoRegistro.codigoMateria];
+                if (esperado && nuevoRegistro.registradoPor && nuevoRegistro.registradoPor !== esperado) {
+                    nuevoRegistro.prevRegistradoPor = nuevoRegistro.registradoPor;
+                    nuevoRegistro.registradoPor = esperado;
+                    const u = usuarios.find(x => (x.nombre && x.nombre.toLowerCase() === esperado.toLowerCase()) || (x.email && x.email.split('@')[0].toLowerCase() === esperado.split(' ')[0].toLowerCase()));
+                    if (u) nuevoRegistro.registradoPorEmail = u.email;
+                    nuevoRegistro.reparado = true;
+                }
+
+                asistencias.push(nuevoRegistro);
+                registrosImportados++;
+            }
+
+            localStorage.setItem('asistencias', JSON.stringify(asistencias));
+
+            let mensaje = `Importados: ${registrosImportados}`;
+            if (omitidos.length) mensaje += `, Omitidos: ${omitidos.length}`;
+            mostrarNotificacion(`✓ ${mensaje}`, 'success');
+            if (omitidos.length) console.warn('Registros omitidos en importación (XML):', omitidos);
+        }, function(){ /* cancel */ });
+
+    } catch (error) {
+        showCustomAlert('Error al importar XML: ' + error.message);
+    }
+}
+
+// FUNCIONES DE SESIÓN 
+// Verificar si hay una sesión activa
+function verificarSesion() {
+    const sesionActiva = sessionStorage.getItem('sesionActiva');
+    const usuarioSesion = sessionStorage.getItem('usuarioSesion');
+    
+    if (sesionActiva && usuarioSesion) {
+        return JSON.parse(sesionActiva);
+    }
+    return null;
+}
+// Obtener información de la sesión actual
+function obtenerInfoSesion() {
+    const sesion = verificarSesion();
+    if (sesion) {
+        return {
+            email: sesion.email,
+            tipo: sesion.tipo,
+            horaLogin: sesion.horaLogin,
+            tiempoSesion: calcularTiempoSesion(sesion.fechaLogin)
+        };
+    }
+    return null;
+}
+// Calcular tiempo de sesión
+function calcularTiempoSesion(fechaLogin) {
+    const ahora = new Date();
+    const login = new Date(fechaLogin);
+    const diferencia = Math.floor((ahora - login) / 1000); // segundos
+    
+    if (diferencia < 60) return `${diferencia}s`;
+    if (diferencia < 3600) return `${Math.floor(diferencia / 60)}m`;
+    return `${Math.floor(diferencia / 3600)}h ${Math.floor((diferencia % 3600) / 60)}m`;
+}
+// Mostrar información de la sesión en consola (útil para debugging)
+function mostrarInfoSesion() {
+    const info = obtenerInfoSesion();
+    if (info) {
+        console.log('=== INFORMACIÓN DE SESIÓN ===');
+        console.log(`Email: ${info.email}`);
+        console.log(`Tipo: ${info.tipo}`);
+        console.log(`Hora de login: ${info.horaLogin}`);
+        console.log(`Tiempo de sesión: ${info.tiempoSesion}`);
+        console.log('============================');
+        return info;
+    } else {
+        console.log('No hay sesión activa');
+        return null;
+    }
+}
+// Mostrar información de sesión en la interfaz
+document.addEventListener('DOMContentLoaded', function() {
+    const sesion = verificarSesion();
+    if (sesion) {
+        console.log('=== INFORMACIÓN DE SESIÓN ACTIVA ===');
+        console.log(`👤 Usuario: ${sesion.email}`);
+        console.log(`🎯 Tipo: ${sesion.tipo.charAt(0).toUpperCase() + sesion.tipo.slice(1)}`);
+        console.log(`🕐 Hora de login: ${sesion.horaLogin}`);
+        console.log(`📅 Fecha: ${new Date(sesion.fechaLogin).toLocaleDateString('es-ES')}`);
+        console.log('=====================================');
+        
+        // Actualizar información en tiempo real cada segundo
+        setInterval(function() {
+            const info = obtenerInfoSesion();
+            if (info) {
+                console.clear();
+                console.log('=== INFORMACIÓN DE SESIÓN ACTIVA ===');
+                console.log(`👤 Usuario: ${info.email}`);
+                console.log(`🎯 Tipo: ${info.tipo.charAt(0).toUpperCase() + info.tipo.slice(1)}`);
+                console.log(`🕐 Hora de login: ${info.horaLogin}`);
+                console.log(`⏱️ Tiempo en sesión: ${info.tiempoSesion}`);
+                console.log('=====================================');
+            }
+        }, 1000);
+    }
+	
+});
+// MOSTRAR DOCENTE SEGUN EL INGRESO 
+document.addEventListener("DOMContentLoaded", function () {
+    const usuario = JSON.parse(localStorage.getItem("usuarioActual"));
+    // Si no hay sesión, volver al login
+    // Evitar redirigir cuando ya estamos en la página de login (evita recargas infinitas)
+    const paginaActual = window.location.pathname.split('/').pop();
+    if (!usuario) {
+        if (paginaActual !== '' && paginaActual !== 'index.html') {
+            window.location.href = 'index.html';
+        }
+        return;
+    }
+    // Mostrar nombre del docente si existe el elemento
+    const docenteNombre = document.getElementById("docenteNombre");
+    if (docenteNombre && usuario.tipo === "docente") {
+        docenteNombre.textContent =
+            "Docente: " + capitalizarNombre(usuario.nombre);
+    }
+});
+// Función para el nombre 
+function capitalizarNombre(nombre) {
+    return nombre
+        .split(" ")
+        .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+        .join(" ");
 }
