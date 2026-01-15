@@ -1,5 +1,5 @@
 <template>
-  <nav v-if= "mostrarSidebar" class="sidebar">
+  <nav v-if= "mostrarSidebar && !esMovil" class="sidebar">
     <div class="logo-sidebar">
       <img src="/ULEAM.png" alt="ULEAM">
     </div>
