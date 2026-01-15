@@ -1,5 +1,5 @@
 <template>
-  <nav v-if= "mostrarSidebar && !esMovil" class="sidebar">
+  <nav class="sidebar">
     <div class="logo-sidebar">
       <img src="/ULEAM.png" alt="ULEAM">
     </div>
@@ -24,7 +24,7 @@
       </li>
     </ul>
     
-    <div v-if="!esMovil" class="user-info">
+    <div class="user-info">
       <p v-if="usuarioActual">
         {{ usuarioActual.tipo === 'docente' ? 'Docente' : 'Estudiante' }}: 
         {{ capitalizarNombre(usuarioActual.nombre) }}
@@ -56,16 +56,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted, onMounted} from 'vue'
+import { ref, computed} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-
-const mostrarSidebar = ref(true)
-const esMovil = ref(false)
 
 const modalCerrarSesionVisible = ref(false)
 
@@ -123,18 +120,6 @@ const confirmarCerrarSesion = () => {
 const cancelarCerrarSesion = () => {
   modalCerrarSesionVisible.value = false
 }
-const verificarPantalla = () => {
-  mostrarSidebar.value = true
-  esMovil.value = window.innerWidth <= 768
-}
-onMounted(() => {
-  verificarPantalla()
-  window.addEventListener('resize', verificarPantalla)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', verificarPantalla)
-})
 </script>
 
 <style scoped>
