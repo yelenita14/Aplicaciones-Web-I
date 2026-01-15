@@ -1585,14 +1585,3 @@ input[type="radio"]:checked {
 body:has(.modal-overlay) {
     overflow: hidden ;
 }
-/* Ocultar sidebar en móvil */
-@media (max-width: 768px) {
-  .sidebar {
-    display: none;
-  }
-
-  .main-content {
-    margin-left: 0 !important;
-    width: 100% !important;
-  }
-}
