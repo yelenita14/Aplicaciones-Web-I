@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Login from '../views/Login.vue'
-import Dashboard from '../views/Dashboard.vue'
-import Estudiantes from '../views/Estudiantes.vue'
+import Login from '@/views/Login.vue'
+import Dashboard from '@/views/Dashboard.vue'
+import Estudiantes from '@/views/Estudiantes.vue'
 import Asistencias from '@/views/Asistencias.vue'
 import Materias from '@/views/Materias.vue'
 import Reportes from '@/views/Reportes.vue'
@@ -15,7 +15,7 @@ const routes = [
   {path : '/asistencias', name: 'Asistencias', component: Asistencias},
   {path : '/materias', name: 'Materias', component: Materias},
   {path : '/reportes', name: 'Reportes', component: Reportes},
-  {path : '/recuperar', name: 'RecuperarContrasena', component: RecuperarContrasena},
+  {path : '/recuperar-contrasena', name: 'RecuperarContrasena', component: RecuperarContrasena},
   {path : '/panel-estudiante', name: 'PanelEstudiante', component: PanelEstudiante},
 ]
 
