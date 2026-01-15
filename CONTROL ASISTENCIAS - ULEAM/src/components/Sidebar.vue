@@ -24,7 +24,7 @@
       </li>
     </ul>
     
-    <div class="user-info">
+    <div v-if="!esMovil" class="user-info">
       <p v-if="usuarioActual">
         {{ usuarioActual.tipo === 'docente' ? 'Docente' : 'Estudiante' }}: 
         {{ capitalizarNombre(usuarioActual.nombre) }}
@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted} from 'vue'
+import { ref, computed, onUnmounted, onMounted} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -65,6 +65,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const mostrarSidebar = ref(true)
+const esMovil = ref(false)
 
 const modalCerrarSesionVisible = ref(false)
 
@@ -123,11 +124,14 @@ const cancelarCerrarSesion = () => {
   modalCerrarSesionVisible.value = false
 }
 const verificarPantalla = () => {
-  mostrarSidebar.value = window.innerWidth > 768
+  mostrarSidebar.value = true
+  esMovil.value = window.innerWidth <= 768
 }
-onUnmounted(() => {
-  window.removeEventListener('resize', verificarPantalla)
+onMounted(() => {
+  verificarPantalla()
+  window.addEventListener('resize', verificarPantalla)
 })
+
 onUnmounted(() => {
   window.removeEventListener('resize', verificarPantalla)
 })
