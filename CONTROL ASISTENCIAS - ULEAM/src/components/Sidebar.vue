@@ -1,5 +1,5 @@
 <template>
-  <nav class="sidebar">
+  <nav v-if= "mostrarSidebar" class="sidebar">
     <div class="logo-sidebar">
       <img src="/ULEAM.png" alt="ULEAM">
     </div>
@@ -56,13 +56,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+
+const mostrarSidebar = ref(true)
 
 const modalCerrarSesionVisible = ref(false)
 
@@ -120,6 +122,15 @@ const confirmarCerrarSesion = () => {
 const cancelarCerrarSesion = () => {
   modalCerrarSesionVisible.value = false
 }
+const verificarPantalla = () => {
+  mostrarSidebar.value = window.innerWidth > 768
+}
+onUnmounted(() => {
+  window.removeEventListener('resize', verificarPantalla)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', verificarPantalla)
+})
 </script>
 
 <style scoped>
