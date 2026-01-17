@@ -39,8 +39,9 @@ export const useAsistenciasStore = defineStore('asistencias', () => {
   const registrarAsistencia = (asistencia) => {
     if (authStore.usuarioActual) {
       asistencia.registradoPor = authStore.usuarioActual.nombre
-      asistencia.registradoPorEmail = authStore.usuarioActual.email
-      asistencia.fechaRegistro = new Date().toISOString()
+      asistencia.registradoPorEmail = authStore.usuarioActual.
+      asistencia.fecha = formatYMD(new Date())
+      asistencia.fechaRegistro = formatYMD(new Date())
     }
 
     asistencias.value.push(asistencia)
@@ -52,7 +53,8 @@ export const useAsistenciasStore = defineStore('asistencias', () => {
       if (authStore.usuarioActual) {
         asistencia.registradoPor = authStore.usuarioActual.nombre
         asistencia.registradoPorEmail = authStore.usuarioActual.email
-        asistencia.fechaRegistro = new Date().toISOString()
+        asistencia.fecha = formatYMD(new Date())
+        asistencia.fechaRegistro = formatYMD(new Date())
       }
     })
 
