@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
+import { formatYMD } from '@/utils/validaciones'
 
 export const useAsistenciasStore = defineStore('asistencias', () => {
   const asistencias = ref([])
@@ -19,23 +20,19 @@ export const useAsistenciasStore = defineStore('asistencias', () => {
     if (!authStore.usuarioActual) return []
 
     const usuarioEmail = authStore.usuarioActual.email?.toLowerCase()
-    
+
     if (authStore.usuarioActual.tipo === 'docente') {
-      return asistencias.value.filter(a => 
-        a.registradoPorEmail && 
-        usuarioEmail && 
-        a.registradoPorEmail.toLowerCase() === usuarioEmail
+      return asistencias.value.filter(a =>
+        a.registradoPorEmail?.toLowerCase() === usuarioEmail
       )
     }
-    
+
     if (authStore.usuarioActual.tipo === 'estudiante') {
-      return asistencias.value.filter(a => 
-        a.email && 
-        usuarioEmail && 
-        a.email.toLowerCase() === usuarioEmail
+      return asistencias.value.filter(a =>
+        a.email?.toLowerCase() === usuarioEmail
       )
     }
-    
+
     return asistencias.value
   })
 
@@ -45,6 +42,7 @@ export const useAsistenciasStore = defineStore('asistencias', () => {
       asistencia.registradoPorEmail = authStore.usuarioActual.email
       asistencia.fechaRegistro = new Date().toISOString()
     }
+
     asistencias.value.push(asistencia)
     guardarAsistencias()
   }
@@ -57,29 +55,31 @@ export const useAsistenciasStore = defineStore('asistencias', () => {
         asistencia.fechaRegistro = new Date().toISOString()
       }
     })
-    
+
     asistencias.value.push(...listaAsistencias)
     guardarAsistencias()
   }
 
   const eliminarAsistenciasPorFechaMateria = (fecha, codigoMateria) => {
     const usuarioEmail = authStore.usuarioActual?.email?.toLowerCase()
-    asistencias.value = asistencias.value.filter(a => 
-      !(a.fecha === fecha && 
-        a.codigoMateria === codigoMateria && 
+
+    asistencias.value = asistencias.value.filter(a =>
+      !(a.fecha === fecha &&
+        a.codigoMateria === codigoMateria &&
         a.registradoPorEmail?.toLowerCase() === usuarioEmail)
     )
+
     guardarAsistencias()
   }
 
   const obtenerEstadisticas = () => {
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = formatYMD(new Date())
     const usuarioEmail = authStore.usuarioActual?.email?.toLowerCase()
-    
+
     let filtradas = asistenciasVisibles.value.filter(a => a.fecha === hoy)
-    
+
     if (authStore.usuarioActual?.tipo === 'docente') {
-      filtradas = filtradas.filter(a => 
+      filtradas = filtradas.filter(a =>
         a.registradoPorEmail?.toLowerCase() === usuarioEmail
       )
     }
