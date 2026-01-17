@@ -180,5 +180,4 @@ const guardar = () => {
 </script>
 
 <style scoped>
-/* Los estilos se heredan del CSS global */
 </style>

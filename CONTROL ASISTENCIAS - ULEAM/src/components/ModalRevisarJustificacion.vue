@@ -134,5 +134,4 @@ const formatearTipo = (tipo) => {
 </script>
 
 <style scoped>
-/* Los estilos se heredan del CSS global */
 </style>

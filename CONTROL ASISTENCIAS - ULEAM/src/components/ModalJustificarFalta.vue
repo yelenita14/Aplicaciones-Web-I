@@ -110,9 +110,11 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useEstudiantesStore } from '@/stores/estudiantes'
 import { formatYMD } from '@/utils/validaciones'
+import { useNotificacionesStore } from '@/stores/notificaciones'
 
 const authStore = useAuthStore()
 const estudiantesStore = useEstudiantesStore()
+const notificacionesStore = useNotificacionesStore()
 
 const props = defineProps({
   asistencia: {
@@ -228,9 +230,9 @@ const enviarJustificacion = () => {
   }
 
   emit('guardar', justificacion)
+  notificacionesStore.crearNotificacionJustificacion(justificacion)
 }
 </script>
 
 <style scoped>
-/* Los estilos se heredan del CSS global */
 </style>

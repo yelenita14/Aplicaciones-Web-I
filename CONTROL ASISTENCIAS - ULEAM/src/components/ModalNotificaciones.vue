@@ -56,5 +56,4 @@ const formatearFecha = (fecha) => {
 </script>
 
 <style scoped>
-/* Los estilos se heredan del CSS global */
 </style>
