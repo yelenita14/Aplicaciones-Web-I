@@ -33,7 +33,8 @@
         Cerrar Sesión
       </button>
     </div>
-
+  </nav>
+  
     <!-- Modal Cerrar Sesión -->
     <div 
       id="modalCerrarSesion" 
@@ -52,7 +53,6 @@
         </div>
       </div>
     </div>
-  </nav>
 </template>
 
 <script setup>
