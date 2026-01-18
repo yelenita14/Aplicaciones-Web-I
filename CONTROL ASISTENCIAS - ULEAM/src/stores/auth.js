@@ -23,17 +23,37 @@ export const useAuthStore = defineStore('auth', () => {
   const login = (email, password) => {
     // Validar que el usuario existe y la contraseña es correcta
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
-    const usuarioEncontrado = usuarios.find(u => u.email && u.email.toLowerCase() === email.toLowerCase())
+    let usuarioEncontrado = usuarios.find(u => u.email && u.email.toLowerCase() === email.toLowerCase())
     
+    // Si el usuario no existe, verificar si es un estudiante registrado
     if (!usuarioEncontrado) {
-      console.error('Usuario no encontrado')
-      return null
-    }
-    
-    // Validar contraseña encriptada
-    if (!validarContrasena(password, usuarioEncontrado.password)) {
-      console.error('Contraseña incorrecta')
-      return null
+      const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
+      const estudiante = estudiantes.find(e => e.email?.toLowerCase() === email.toLowerCase())
+      
+      if (estudiante) {
+        // Es un estudiante registrado, crear la cuenta con la contraseña que ingresó
+        const nuevoUsuario = {
+          nombre: `${estudiante.nombres} ${estudiante.apellidos}`,
+          email: email,
+          password: encriptarContrasena(password),
+          matricula: estudiante.matricula,
+          tipo: 'estudiante',
+          fechaCreacion: new Date().toISOString()
+        }
+        usuarios.push(nuevoUsuario)
+        localStorage.setItem('usuarios', JSON.stringify(usuarios))
+        usuarioEncontrado = nuevoUsuario
+        console.log(`Cuenta creada para estudiante: ${email}`)
+      } else {
+        console.error('Usuario no encontrado')
+        return null
+      }
+    } else {
+      // Validar contraseña encriptada
+      if (!validarContrasena(password, usuarioEncontrado.password)) {
+        console.error('Contraseña incorrecta')
+        return null
+      }
     }
     
     // Determinar tipo de usuario por el correo
