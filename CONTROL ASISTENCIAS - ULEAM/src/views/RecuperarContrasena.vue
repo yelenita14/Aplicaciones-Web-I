@@ -42,10 +42,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEstudiantesStore } from '@/stores/estudiantes'
 import { encriptarContrasena } from '@/utils/encriptacion'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const estudiantesStore = useEstudiantesStore()
 
 const email = ref('')
 const password = ref('')
@@ -57,6 +59,11 @@ const usuarioAutenticado = ref(!!authStore.usuarioActual)
 const cambiarClave = () => {
   error.value = ''
   success.value = ''
+
+  // Cargar estudiantes si no están cargados
+  if (estudiantesStore.estudiantes.length === 0) {
+    estudiantesStore.cargarEstudiantes()
+  }
 
   let emailAUsar = email.value
 
@@ -80,13 +87,32 @@ const cambiarClave = () => {
   }
 
   const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
-  const idx = usuarios.findIndex(
+  let idx = usuarios.findIndex(
     u => u.email?.toLowerCase() === emailAUsar.toLowerCase()
   )
 
+  // Si el usuario no existe, verificar si es un estudiante registrado
   if (idx === -1) {
-    error.value = 'El correo no está registrado'
-    return
+    const estudiante = estudiantesStore.estudiantes.find(
+      e => e.email?.toLowerCase() === emailAUsar.toLowerCase()
+    )
+    
+    if (estudiante) {
+      // Es un estudiante registrado, crear la cuenta
+      const nuevoUsuario = {
+        nombre: `${estudiante.nombres} ${estudiante.apellidos}`,
+        email: emailAUsar,
+        password: encriptarContrasena(password.value),
+        matricula: estudiante.matricula,
+        tipo: 'estudiante',
+        fechaCreacion: new Date().toISOString()
+      }
+      usuarios.push(nuevoUsuario)
+      idx = usuarios.length - 1
+    } else {
+      error.value = 'El correo no está registrado en el sistema'
+      return
+    }
   }
 
   usuarios[idx].password = encriptarContrasena(password.value)
