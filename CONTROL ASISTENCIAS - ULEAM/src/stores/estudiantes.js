@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
+import { encriptarContrasena } from '@/utils/encriptacion'
 
 export const useEstudiantesStore = defineStore('estudiantes', () => {
   const estudiantes = ref([])
@@ -77,6 +78,33 @@ export const useEstudiantesStore = defineStore('estudiantes', () => {
 
     estudiantes.value.push(estudiante)
     guardarEstudiantes()
+
+    // CREAR USUARIO AUTOMÁTICAMENTE
+    // La contraseña por defecto es la matrícula (sin caracteres especiales)
+    const contraseñaPorDefecto = estudiante.matricula.replace(/[^0-9]/g, '')
+    
+    // Obtener lista de usuarios
+    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
+    
+    // Verificar si el usuario ya existe
+    const usuarioExistente = usuarios.find(u => u.email?.toLowerCase() === estudiante.email.toLowerCase())
+    
+    if (!usuarioExistente) {
+      // Crear nuevo usuario
+      const nuevoUsuario = {
+        nombre: `${estudiante.nombres} ${estudiante.apellidos}`,
+        email: estudiante.email,
+        password: encriptarContrasena(contraseñaPorDefecto),
+        matricula: estudiante.matricula,
+        tipo: 'estudiante',
+        fechaCreacion: new Date().toISOString()
+      }
+      
+      usuarios.push(nuevoUsuario)
+      localStorage.setItem('usuarios', JSON.stringify(usuarios))
+      console.log(`Usuario creado para ${estudiante.email} con contraseña temporal: ${contraseñaPorDefecto}`)
+    }
+    
     return true
   }
 
