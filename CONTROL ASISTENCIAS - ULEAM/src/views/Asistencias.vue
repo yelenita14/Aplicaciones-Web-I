@@ -163,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import ModalNotificaciones from '@/components/ModalNotificaciones.vue'
 import ModalRevisarJustificacion from '@/components/ModalRevisarJustificacion.vue'
@@ -551,13 +551,6 @@ const mostrarNotificacion = (mensaje, tipo) => {
     notificationVisible.value = false
   }, 5000)
 }
-
-// Watch para cargar materias al montar
-watch(() => materiasStore.materias, (nuevasMaterias) => {
-  if (nuevasMaterias.length === 0) {
-    materiasStore.cargarMaterias()
-  }
-}, { immediate: true })
 
 onMounted(() => {
   // Establecer fecha de hoy por defecto (ajustado a zona horaria local)
