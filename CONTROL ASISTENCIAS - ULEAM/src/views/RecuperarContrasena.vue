@@ -60,11 +60,6 @@ const cambiarClave = () => {
   error.value = ''
   success.value = ''
 
-  // Cargar estudiantes si no están cargados
-  if (estudiantesStore.estudiantes.length === 0) {
-    estudiantesStore.cargarEstudiantes()
-  }
-
   let emailAUsar = email.value
 
   // Si está autenticado, usar su email
@@ -93,7 +88,8 @@ const cambiarClave = () => {
 
   // Si el usuario no existe, verificar si es un estudiante registrado
   if (idx === -1) {
-    const estudiante = estudiantesStore.estudiantes.find(
+    const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
+    const estudiante = estudiantes.find(
       e => e.email?.toLowerCase() === emailAUsar.toLowerCase()
     )
     
