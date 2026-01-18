@@ -21,44 +21,72 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const login = (email, password) => {
-    // Validar que el usuario existe y la contraseña es correcta
+    // Determinar tipo de usuario por el correo
+    const esEstudiante = email.startsWith('e') && email.includes('@live.uleam.edu.ec')
+    const esDocente = email.includes('@uleam.edu.ec') && !email.includes('@live.uleam.edu.ec')
+    
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
     let usuarioEncontrado = usuarios.find(u => u.email && u.email.toLowerCase() === email.toLowerCase())
     
-    // Si el usuario no existe, verificar si es un estudiante registrado
-    if (!usuarioEncontrado) {
-      const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
-      const estudiante = estudiantes.find(e => e.email?.toLowerCase() === email.toLowerCase())
-      
-      if (estudiante) {
-        // Es un estudiante registrado, crear la cuenta con la contraseña que ingresó
+    // DOCENTES: pueden entrar con cualquier contraseña
+    if (esDocente) {
+      if (!usuarioEncontrado) {
+        // Crear la cuenta automáticamente
         const nuevoUsuario = {
-          nombre: `${estudiante.nombres} ${estudiante.apellidos}`,
+          nombre: email
+            .split('@')[0]
+            .replace('.', ' ')
+            .replace(/\b\w/g, letra => letra.toUpperCase()),
           email: email,
           password: encriptarContrasena(password),
-          matricula: estudiante.matricula,
-          tipo: 'estudiante',
+          tipo: 'docente',
           fechaCreacion: new Date().toISOString()
         }
         usuarios.push(nuevoUsuario)
         localStorage.setItem('usuarios', JSON.stringify(usuarios))
         usuarioEncontrado = nuevoUsuario
-        console.log(`Cuenta creada para estudiante: ${email}`)
+        console.log(`Cuenta de docente creada: ${email}`)
       } else {
-        console.error('Usuario no encontrado')
-        return null
-      }
-    } else {
-      // Validar contraseña encriptada
-      if (!validarContrasena(password, usuarioEncontrado.password)) {
-        console.error('Contraseña incorrecta')
-        return null
+        // Si ya existe, actualizar la contraseña (por si cambió)
+        usuarioEncontrado.password = encriptarContrasena(password)
+        localStorage.setItem('usuarios', JSON.stringify(usuarios))
       }
     }
-    
-    // Determinar tipo de usuario por el correo
-    const esEstudiante = email.startsWith('e') && email.includes('@live.uleam.edu.ec')
-    const esDocente = email.includes('@uleam.edu.ec') && !email.includes('@live.uleam.edu.ec')
+    // ESTUDIANTES: deben existir en la tabla estudiantes
+    else if (esEstudiante) {
+      if (!usuarioEncontrado) {
+        const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
+        const estudiante = estudiantes.find(e => e.email?.toLowerCase() === email.toLowerCase())
+        
+        if (estudiante) {
+          // Es un estudiante registrado, crear la cuenta con la contraseña que ingresó
+          const nuevoUsuario = {
+            nombre: `${estudiante.nombres} ${estudiante.apellidos}`,
+            email: email,
+            password: encriptarContrasena(password),
+            matricula: estudiante.matricula,
+            tipo: 'estudiante',
+            fechaCreacion: new Date().toISOString()
+          }
+          usuarios.push(nuevoUsuario)
+          localStorage.setItem('usuarios', JSON.stringify(usuarios))
+          usuarioEncontrado = nuevoUsuario
+          console.log(`Cuenta de estudiante creada: ${email}`)
+        } else {
+          console.error('Estudiante no encontrado')
+          return null
+        }
+      } else {
+        // Validar contraseña encriptada para estudiantes
+        if (!validarContrasena(password, usuarioEncontrado.password)) {
+          console.error('Contraseña incorrecta')
+          return null
+        }
+      }
+    } else {
+      console.error('Email de institución no válido')
+      return null
+    }
     
     // Crear objeto de usuario
     const usuario = {
