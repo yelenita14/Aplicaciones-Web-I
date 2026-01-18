@@ -110,11 +110,10 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useEstudiantesStore } from '@/stores/estudiantes'
 import { formatYMD } from '@/utils/validaciones'
-import { useNotificacionesStore } from '@/stores/notificaciones'
+import { nowLocalISO } from '@/utils/validaciones'
 
 const authStore = useAuthStore()
 const estudiantesStore = useEstudiantesStore()
-const notificacionesStore = useNotificacionesStore()
 
 const props = defineProps({
   asistencia: {
@@ -149,14 +148,14 @@ const handleFileSelect = async (event) => {
 
   const maxSize = 5 * 1024 * 1024 // 5MB
   if (file.size > maxSize) {
-    errores.value.archivo = 'El archivo es demasiado grande. Tamaño máximo: 5MB'
+    errores.value.archivo = 'El archivo es demasiado grande. Tama帽o m谩ximo: 5MB'
     event.target.value = ''
     return
   }
 
   nombreArchivo.value = file.name
   
-  // Leer archivo como Data URL solo si es pequeño
+  // Leer archivo como Data URL solo si es peque帽o
   if (file.size <= 2 * 1024 * 1024) {
     try {
       archivoData.value = await readFileAsDataURL(file)
@@ -225,14 +224,14 @@ const enviarJustificacion = () => {
     archivo: nombreArchivo.value || null,
     archivoData: archivoData.value,
     estado: 'Pendiente',
-    fechaSolicitud: new Date().toISOString(),
+    fechaSolicitud: nowLocalISO(),
     observaciones: null
   }
 
   emit('guardar', justificacion)
-  notificacionesStore.crearNotificacionJustificacion(justificacion)
 }
 </script>
 
 <style scoped>
+/* Los estilos se heredan del CSS global */
 </style>

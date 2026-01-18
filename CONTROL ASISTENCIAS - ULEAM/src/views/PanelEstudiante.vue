@@ -537,11 +537,31 @@ const actualizarFecha = () => {
 
 const formatearFecha = (fecha) => {
   if (!fecha) return '-'
+  
+  // Si es un ISO string (contiene T y Z), extraer solo la fecha
+  if (typeof fecha === 'string' && fecha.includes('T')) {
+    fecha = fecha.split('T')[0]
+  }
+  
+  // Si el formato es YYYY-MM-DD, dividir y usar directamente
+  if (typeof fecha === 'string' && fecha.includes('-')) {
+    const partes = fecha.split('-')
+    if (partes.length === 3) {
+      const [year, month, day] = partes
+      return `${day}/${month}/${year}`
+    }
+  }
+  
   return new Date(fecha).toLocaleDateString('es-EC')
 }
 
 const formatearFechaCorta = (fecha) => {
   if (!fecha) return '-'
+  // Si el formato es YYYY-MM-DD, dividir y usar directamente
+  if (typeof fecha === 'string' && fecha.includes('-')) {
+    const [year, month, day] = fecha.split('-')
+    return `${day}/${month}/${year}`
+  }
   const date = new Date(fecha)
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
 }
@@ -726,7 +746,7 @@ const enviarJustificacion = async () => {
     tipo: justificacionForm.value.tipo,
     motivo: justificacionForm.value.motivo,
     estado: 'Pendiente',
-    fechaSolicitud: new Date().toISOString(),
+    fechaSolicitud: new Date().toLocaleDateString('en-CA'),
     registradoPorEmail: asistencia.registradoPorEmail,
     archivo: archivoNombre.value || null,
     archivoData: archivoData

@@ -27,7 +27,7 @@
           <p style="padding: 10px; background: white; border-radius: 6px; border-left: 3px solid #f39c12; margin-bottom: 15px;">
             {{ detalles.motivo }}
           </p>
-          <p><strong>Fecha de Solicitud:</strong> {{ formatearFechaHora(justificacion.fechaCreacion) }}</p>
+          <p><strong>Fecha de Solicitud:</strong> {{ formatearFecha(detalles.fechaSolicitud) }}</p>
           
           <div style="margin-top: 15px;">
             <p style="margin-bottom: 8px;"><strong>Archivo adjunto:</strong> 
@@ -52,9 +52,9 @@
             <div v-if="detalles.archivoData">
               <iframe 
                 v-if="esPDF"
-                :src="detalles.archivoData"
+                :src="detalles.archivoData + '#toolbar=0&navpanes=0&scrollbar=0'"
                 style="width: 100%; height: 500px; border: 1px solid #ccc; border-radius: 6px; margin-top: 10px;"
-                title="Vista previa del documento"
+                :title="detalles.archivo"
               ></iframe>
               <img 
                 v-else-if="esImagen"
@@ -68,10 +68,10 @@
         
         <div style="display: flex; gap: 10px; margin-top: 20px;">
           <button class="btn-danger" @click="$emit('rechazar')" style="flex: 1; padding: 12px;">
-            ✗ Rechazar
+            Rechazar
           </button>
           <button class="btn-success" @click="$emit('aprobar')" style="flex: 1; padding: 12px;">
-            ✓ Aprobar
+            Aprobar
           </button>
         </div>
       </div>
@@ -105,8 +105,30 @@ const esImagen = computed(() => {
 })
 
 const formatearFecha = (fecha) => {
-  if (!fecha) return ''
-  return formatYMD(fecha)
+  if (!fecha) return 'No disponible'
+  
+  // Si es un ISO string (contiene T), extraer solo la parte de fecha
+  let fechaProcesar = fecha
+  if (typeof fecha === 'string' && fecha.includes('T')) {
+    fechaProcesar = fecha.split('T')[0]
+  }
+  
+  // Si el formato es YYYY-MM-DD, dividir y formatear
+  if (typeof fechaProcesar === 'string' && fechaProcesar.includes('-')) {
+    const partes = fechaProcesar.split('-')
+    if (partes.length === 3) {
+      const [year, month, day] = partes
+      return `${day}/${month}/${year}`
+    }
+  }
+  
+  // Si nada funcionó, intentar con formatYMD
+  try {
+    const resultado = formatYMD(fecha)
+    return resultado || 'No disponible'
+  } catch (e) {
+    return 'No disponible'
+  }
 }
 
 const formatearFechaHora = (fecha) => {
@@ -114,12 +136,12 @@ const formatearFechaHora = (fecha) => {
   const date = new Date(fecha)
   const dia = String(date.getDate()).padStart(2, '0')
   const mes = String(date.getMonth() + 1).padStart(2, '0')
-  const año = date.getFullYear()
+  const a帽o = date.getFullYear()
   const horas = String(date.getHours()).padStart(2, '0')
   const minutos = String(date.getMinutes()).padStart(2, '0')
   const periodo = date.getHours() >= 12 ? 'p. m.' : 'a. m.'
   
-  return `${dia}/${mes}/${año}, ${horas}:${minutos} ${periodo}`
+  return `${dia}/${mes}/${a帽o}, ${horas}:${minutos} ${periodo}`
 }
 
 const formatearTipo = (tipo) => {
@@ -134,4 +156,5 @@ const formatearTipo = (tipo) => {
 </script>
 
 <style scoped>
+/* Los estilos estan en assets*/
 </style>

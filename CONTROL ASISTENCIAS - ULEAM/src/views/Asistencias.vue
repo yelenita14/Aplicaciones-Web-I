@@ -552,9 +552,16 @@ const mostrarNotificacion = (mensaje, tipo) => {
   }, 5000)
 }
 
+// Watch para cargar materias al montar
+watch(() => materiasStore.materias, (nuevasMaterias) => {
+  if (nuevasMaterias.length === 0) {
+    materiasStore.cargarMaterias()
+  }
+}, { immediate: true })
+
 onMounted(() => {
-  // Establecer fecha de hoy por defecto
-  const hoy = new Date().toISOString().split('T')[0]
+  // Establecer fecha de hoy por defecto (ajustado a zona horaria local)
+  const hoy = new Date().toLocaleDateString('en-CA')
   fechaSeleccionada.value = hoy
   
   // Cargar datos necesarios

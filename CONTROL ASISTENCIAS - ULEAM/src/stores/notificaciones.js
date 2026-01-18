@@ -14,6 +14,38 @@ export const useNotificacionesStore = defineStore('notificaciones', () => {
   const cargarNotificaciones = () => {
     const data = localStorage.getItem('notificacionesDocente')
     notificaciones.value = data ? JSON.parse(data) : []
+    
+    // Migración: Agregar campos faltantes a las notificaciones antiguas
+    let necesitaGuardar = false
+    notificaciones.value.forEach(notif => {
+      if (notif.detalles) {
+        // Intentar obtener de la justificación original
+        const justificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]')
+        const justif = justificaciones.find(j => j.id === notif.detalles?.justificacionId)
+        
+        // Agregar fechaSolicitud si falta
+        if (!notif.detalles.fechaSolicitud) {
+          if (justif && justif.fechaSolicitud) {
+            notif.detalles.fechaSolicitud = justif.fechaSolicitud
+            necesitaGuardar = true
+          } else if (notif.fechaCreacion) {
+            notif.detalles.fechaSolicitud = notif.fechaCreacion.split('T')[0]
+            necesitaGuardar = true
+          }
+        }
+        
+        // Agregar archivo y archivoData si faltan
+        if (!notif.detalles.archivo && justif) {
+          notif.detalles.archivo = justif.archivo || null
+          notif.detalles.archivoData = justif.archivoData || null
+          necesitaGuardar = true
+        }
+      }
+    })
+    
+    if (necesitaGuardar) {
+      guardarNotificaciones()
+    }
   }
 
   const guardarNotificaciones = () => {
@@ -101,6 +133,7 @@ export const useNotificacionesStore = defineStore('notificaciones', () => {
         estudianteEmail: justificacion.email,
         materia: justificacion.materia,
         fechaFalta: justificacion.fechaFalta,
+        fechaSolicitud: justificacion.fechaSolicitud,
         tipoJustificacion: justificacion.tipo,
         motivo: justificacion.motivo,
         justificacionId: justificacion.id,

@@ -51,9 +51,24 @@ const notificacionesPendientes = computed(() => {
 })
 
 const formatearFecha = (fecha) => {
-  return new Date(fecha).toLocaleString('es-EC')
+  if (!fecha) return ''
+  try {
+    const date = new Date(fecha)
+    const dia = String(date.getDate()).padStart(2, '0')
+    const mes = String(date.getMonth() + 1).padStart(2, '0')
+    const año = date.getFullYear()
+    const horas = String(date.getHours()).padStart(2, '0')
+    const minutos = String(date.getMinutes()).padStart(2, '0')
+    const segundos = String(date.getSeconds()).padStart(2, '0')
+    const periodo = date.getHours() >= 12 ? 'P.M' : 'A.M'
+    
+    return `${dia}/${mes}/${año}, ${horas}:${minutos}:${segundos} ${periodo}`
+  } catch (e) {
+    return fecha
+  }
 }
 </script>
 
 <style scoped>
+/* Los estilos se heredan del CSS global */
 </style>

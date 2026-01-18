@@ -4,98 +4,101 @@
       <div class="logo">
         <img src="/ULEAM.png" alt="ULEAM Logo">
       </div>
-      
+
       <h2>RECUPERAR CONTRASEÑA</h2>
-      
-      <form @submit.prevent="enviarCodigo" class="login-form">
-        <div class="form-group">
-          <label for="emailRecuperar">Correo institucional:</label>
-          <input 
-            type="email" 
-            id="emailRecuperar"
-            v-model="email"
-            required
-            @input="limpiarError"
-          >
-          <span class="error-message" v-if="error">{{ error }}</span>
+
+      <form @submit.prevent="cambiarClave" class="login-form">
+        <div v-if="!usuarioAutenticado" class="form-group">
+          <label>Correo institucional:</label>
+          <input type="email" v-model="email" required />
         </div>
-        
+
+        <div class="form-group">
+          <label>Nueva contraseña:</label>
+          <input type="password" v-model="password" required />
+        </div>
+
+        <div class="form-group">
+          <label>Confirmar contraseña:</label>
+          <input type="password" v-model="confirmar" required />
+        </div>
+
+        <span class="error-message" v-if="error">{{ error }}</span>
+        <span class="success-message" v-if="success">{{ success }}</span>
+
         <button type="submit" class="btn-primary">
-          Enviar código
+          Cambiar contraseña
         </button>
-        
+
         <div class="forgot-password">
           <router-link to="/">← Volver al inicio de sesión</router-link>
         </div>
       </form>
     </div>
-
-    <!-- Notification Toast -->
-    <Notification
-      v-if="notificationVisible"
-      :mensaje="notificationMensaje"
-      :tipo="notificationTipo"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Notification from '@/components/Notification.vue'
-import { validarEmail, validarEmailULEAM } from '@/utils/validaciones'
+import { useAuthStore } from '@/stores/auth'
+import { encriptarContrasena } from '@/utils/encriptacion'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const email = ref('')
+const password = ref('')
+const confirmar = ref('')
 const error = ref('')
+const success = ref('')
+const usuarioAutenticado = ref(!!authStore.usuarioActual)
 
-// Notification
-const notificationVisible = ref(false)
-const notificationMensaje = ref('')
-const notificationTipo = ref('info')
-
-const limpiarError = () => {
+const cambiarClave = () => {
   error.value = ''
-}
+  success.value = ''
 
-const enviarCodigo = () => {
-  error.value = ''
+  let emailAUsar = email.value
 
-  if (!email.value) {
-    error.value = 'El correo es obligatorio'
+  // Si está autenticado, usar su email
+  if (authStore.usuarioActual) {
+    emailAUsar = authStore.usuarioActual.email
+  } else if (!email.value) {
+    // Si no está autenticado, debe ingresar el email
+    error.value = 'Debe ingresar su correo institucional'
     return
   }
 
-  if (!validarEmail(email.value)) {
-    error.value = 'Formato de correo inválido'
+  if (password.value.length < 6) {
+    error.value = 'La contraseña debe tener al menos 6 caracteres'
     return
   }
 
-  if (!validarEmailULEAM(email.value)) {
-    error.value = 'Debe usar un correo institucional @uleam.edu.ec'
+  if (password.value !== confirmar.value) {
+    error.value = 'Las contraseñas no coinciden'
     return
   }
 
-  // Simulación de envío de código
-  mostrarNotificacion('✓ Código enviado al correo', 'success')
+  const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
+  const idx = usuarios.findIndex(
+    u => u.email?.toLowerCase() === emailAUsar.toLowerCase()
+  )
+
+  if (idx === -1) {
+    error.value = 'El correo no está registrado'
+    return
+  }
+
+  usuarios[idx].password = encriptarContrasena(password.value)
+  localStorage.setItem('usuarios', JSON.stringify(usuarios))
+
+  success.value = 'Contraseña actualizada correctamente'
+  password.value = ''
+  confirmar.value = ''
+  email.value = ''
   
   setTimeout(() => {
     router.push('/')
   }, 2000)
 }
-
-const mostrarNotificacion = (mensaje, tipo) => {
-  notificationMensaje.value = mensaje
-  notificationTipo.value = tipo
-  notificationVisible.value = true
-  
-  setTimeout(() => {
-    notificationVisible.value = false
-  }, 5000)
-}
 </script>
-
-<style scoped>
-/* Los estilos se heredan del CSS global */
-</style>

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { encriptarContrasena, validarContrasena } from '@/utils/encriptacion'
 
 export const useAuthStore = defineStore('auth', () => {
   const usuarioActual = ref(null)
@@ -20,18 +21,34 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const login = (email, password) => {
+    // Validar que el usuario existe y la contraseña es correcta
+    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
+    const usuarioEncontrado = usuarios.find(u => u.email && u.email.toLowerCase() === email.toLowerCase())
+    
+    if (!usuarioEncontrado) {
+      console.error('Usuario no encontrado')
+      return null
+    }
+    
+    // Validar contraseña encriptada
+    if (!validarContrasena(password, usuarioEncontrado.password)) {
+      console.error('Contraseña incorrecta')
+      return null
+    }
+    
     // Determinar tipo de usuario por el correo
     const esEstudiante = email.startsWith('e') && email.includes('@live.uleam.edu.ec')
     const esDocente = email.includes('@uleam.edu.ec') && !email.includes('@live.uleam.edu.ec')
     
     // Crear objeto de usuario
     const usuario = {
-      nombre: email
+      nombre: usuarioEncontrado.nombre || email
         .split('@')[0]
         .replace('.', ' ')
         .replace(/\b\w/g, letra => letra.toUpperCase()),
       email: email,
       tipo: esEstudiante ? 'estudiante' : 'docente',
+      matricula: usuarioEncontrado.matricula,
       fechaLogin: new Date().toISOString()
     }
 
@@ -50,28 +67,6 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.setItem('sesionActiva', JSON.stringify(sesion))
     sessionStorage.setItem('usuarioSesion', email)
     sesionActiva.value = sesion
-    
-    // Guardar usuario en lista de usuarios
-    try {
-      const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]')
-      const idx = usuarios.findIndex(u => u.email && u.email.toLowerCase() === email.toLowerCase())
-      
-      if (idx !== -1) {
-        usuarios[idx].password = password
-        usuarios[idx].nombre = usuario.nombre
-        usuarios[idx].tipo = usuario.tipo
-      } else {
-        usuarios.push({ 
-          email: email, 
-          password: password, 
-          nombre: usuario.nombre, 
-          tipo: usuario.tipo 
-        })
-      }
-      localStorage.setItem('usuarios', JSON.stringify(usuarios))
-    } catch (e) {
-      console.error('Error guardando usuario:', e)
-    }
     
     return usuario.tipo
   }

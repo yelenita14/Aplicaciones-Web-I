@@ -19,10 +19,10 @@
         <input 
           type="text" 
           v-model="busqueda"
-          placeholder="Buscar estudiante..."
+          placeholder="Buscar por matrícula, nombre o email..."
         >
         <select v-model="filtroCarrera">
-          <option value="">Todas las carreras</option>
+          <option value="">📚 Todas las carreras</option>
           <option 
             v-for="carrera in carrerasStore.carreras" 
             :key="carrera.nombre"
@@ -30,6 +30,11 @@
           >
             {{ carrera.nombre }}
           </option>
+        </select>
+        <select v-model="filtroEstado">
+          <option value="">📊 Todos los estados</option>
+          <option value="activo">✅ Activo</option>
+          <option value="inactivo">⏸️ Inactivo</option>
         </select>
       </div>
       
@@ -116,6 +121,7 @@ const carrerasStore = useCarrerasStore()
 
 const busqueda = ref('')
 const filtroCarrera = ref('')
+const filtroEstado = ref('')
 const modalEstudianteVisible = ref(false)
 const modalCarreraVisible = ref(false)
 const modalConfirmVisible = ref(false)
@@ -143,6 +149,13 @@ const estudiantesFiltrados = computed(() => {
 
   if (filtroCarrera.value) {
     resultado = resultado.filter(e => e.carrera === filtroCarrera.value)
+  }
+
+  if (filtroEstado.value) {
+    resultado = resultado.filter(e => {
+      const estado = e.estado || 'activo'
+      return estado === filtroEstado.value
+    })
   }
 
   if (busqueda.value) {

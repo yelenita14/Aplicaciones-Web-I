@@ -35,6 +35,16 @@
           </div>
         </div>
       </div>
+
+      <!-- Gráficos de Estadísticas -->
+      <section class="charts-section">
+        <div class="dashboard-grid">
+          <div class="card" style="grid-column: 1 / -1; background: white; padding: 20px;">
+            <h2 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Análisis de Asistencias</h2>
+            <ChartAsistencias />
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 </template>
@@ -42,6 +52,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
+import ChartAsistencias from '@/components/ChartAsistencias.vue'
 import { useEstudiantesStore } from '@/stores/estudiantes'
 import { useAsistenciasStore } from '@/stores/asistencias'
 
@@ -76,4 +87,22 @@ onMounted(() => {
 
 <style scoped>
 /* Los estilos se heredan del CSS global */
+.charts-section {
+  margin-top: 30px;
+}
+
+.charts-section .card {
+  display: flex;
+  flex-direction: column;
+}
+
+.charts-section h2 {
+  color: #333;
+  margin: 0 0 20px 0;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+  width: 100%;
+  order: -1;
+}
 </style>

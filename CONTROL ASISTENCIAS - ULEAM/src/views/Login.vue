@@ -95,6 +95,11 @@ const handleLogin = () => {
   if (isValid) {
     const tipoUsuario = authStore.login(email.value, password.value)
     
+    if (tipoUsuario === null) {
+      errores.value.password = 'Correo o contraseña incorrectos'
+      return
+    }
+    
     // Redirigir según tipo de usuario
     if (tipoUsuario === 'estudiante') {
       router.push('/panel-estudiante')

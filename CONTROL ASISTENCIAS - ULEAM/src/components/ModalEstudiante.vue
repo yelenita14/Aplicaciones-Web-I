@@ -216,9 +216,15 @@ const validarFormulario = () => {
     isValid = false
   }
 
-  if (!form.value.cedula || !validarCedula(form.value.cedula)) {
-    errores.value.cedula = 'Cédula ecuatoriana inválida'
+  if (!form.value.cedula) {
+    errores.value.cedula = 'La cédula es obligatoria'
     isValid = false
+  } else {
+    const validacionCedula = validarCedula(form.value.cedula)
+    if (!validacionCedula.valido) {
+      errores.value.cedula = validacionCedula.mensaje
+      isValid = false
+    }
   }
 
   if (!form.value.nombres || !validarSoloLetras(form.value.nombres) || form.value.nombres.length < 3) {
@@ -236,9 +242,15 @@ const validarFormulario = () => {
     isValid = false
   }
 
-  if (!form.value.telefono || !validarTelefono(form.value.telefono)) {
-    errores.value.telefono = 'Teléfono inválido (formato: 09XXXXXXXX)'
+  if (!form.value.telefono) {
+    errores.value.telefono = 'El teléfono es obligatorio'
     isValid = false
+  } else {
+    const validacionTelefono = validarTelefono(form.value.telefono)
+    if (!validacionTelefono.valido) {
+      errores.value.telefono = validacionTelefono.mensaje
+      isValid = false
+    }
   }
 
   if (!form.value.carrera) {
