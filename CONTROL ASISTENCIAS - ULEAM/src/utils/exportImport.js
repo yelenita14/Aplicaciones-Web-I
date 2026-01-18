@@ -28,8 +28,9 @@ function descargarArchivo(contenido, nombre, tipo) {
 }
 
 // EXPORTAR A JSON
-export function exportarJSONUtil() {
-  const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
+export function exportarJSONUtil(estudiantesCargados = null, attendanceData = null, observaciones = null, metadata = null) {
+  // Si se pasan parámetros, usar los datos de esa sesión. Si no, cargar todo de localStorage
+  const estudiantes = estudiantesCargados || JSON.parse(localStorage.getItem('estudiantes') || '[]')
   const materias = JSON.parse(localStorage.getItem('materias') || '[]')
   const asistencias = JSON.parse(localStorage.getItem('asistencias') || '[]')
   const justificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]')
@@ -63,8 +64,9 @@ export function exportarJSONUtil() {
 }
 
 // EXPORTAR A XML
-export function exportarXMLUtil() {
-  const estudiantes = JSON.parse(localStorage.getItem('estudiantes') || '[]')
+export function exportarXMLUtil(estudiantesCargados = null, attendanceData = null, observaciones = null, metadata = null) {
+  // Si se pasan parámetros, usar los datos de esa sesión. Si no, cargar todo de localStorage
+  const estudiantes = estudiantesCargados || JSON.parse(localStorage.getItem('estudiantes') || '[]')
   const materias = JSON.parse(localStorage.getItem('materias') || '[]')
   const asistencias = JSON.parse(localStorage.getItem('asistencias') || '[]')
   const justificaciones = JSON.parse(localStorage.getItem('justificaciones') || '[]')
