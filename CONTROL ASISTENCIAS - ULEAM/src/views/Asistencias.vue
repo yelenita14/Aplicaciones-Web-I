@@ -102,9 +102,9 @@
                 <input 
                   type="radio" 
                   class="radio-input"
-                  :name="`radio_${estudiante.matricula}`"
+                  :name="`falta_${estudiante.matricula}`"
                   v-model="attendanceData[estudiante.matricula]"
-                  value="ausente"
+                  :value="true"
                 >
               </td>
               <td>
@@ -258,8 +258,12 @@ const cargarEstudiantes = () => {
         const registro = registrosExistentes.find(r => r.matricula === est.matricula)
         
         if (registro) {
-          attendanceData.value[est.matricula] = registro.estado
+          // Si el estado es 'ausente', marcar como true (checkbox marcado)
+          attendanceData.value[est.matricula] = registro.estado === 'ausente'
           observaciones.value[est.matricula] = registro.observacion || ''
+        } else {
+          // Por defecto, sin marcar (asistencia)
+          attendanceData.value[est.matricula] = false
         }
         
         return { ...est }
@@ -295,8 +299,9 @@ const guardarAsistencias = () => {
   const materia = materiasStore.materias.find(m => m.codigo === materiaSeleccionada.value)
   const materiaNombre = materia?.nombre || 'Sin nombre'
 
+  // Verificar que todos tengan un estado definido (todos deben tener true o false)
   const sinRegistro = estudiantesCargados.value.filter(
-    e => !attendanceData.value[e.matricula]
+    e => attendanceData.value[e.matricula] === undefined || attendanceData.value[e.matricula] === null
   )
 
   const procederGuardado = () => {
@@ -311,29 +316,25 @@ const guardarAsistencias = () => {
       const nuevasAsistencias = []
       
       estudiantesCargados.value.forEach(est => {
-        const estado = attendanceData.value[est.matricula]
-        if (estado) {
-          nuevasAsistencias.push({
-            id: `${Date.now()}_${est.matricula}_${Math.random()}`,
-            matricula: est.matricula,
-            nombres: est.nombres,
-            apellidos: est.apellidos,
-            email: est.email,
-            materia: materiaNombre,
-            codigoMateria: materiaSeleccionada.value,
-            fecha: fechaSeleccionada.value,
-            estado: estado,
-            observacion: observaciones.value[est.matricula] || '',
-            registradoPorEmail: authStore.usuarioActual?.email || '',
-            fechaRegistro: new Date().toISOString()
-          })
-        }
+        const estaFalta = attendanceData.value[est.matricula]
+        // Si está marcado = falta (ausente), si no está marcado = asistencia (presente)
+        const estado = estaFalta ? 'ausente' : 'presente'
+        
+        nuevasAsistencias.push({
+          id: `${Date.now()}_${est.matricula}_${Math.random()}`,
+          matricula: est.matricula,
+          nombres: est.nombres,
+          apellidos: est.apellidos,
+          email: est.email,
+          materia: materiaNombre,
+          codigoMateria: materiaSeleccionada.value,
+          fecha: fechaSeleccionada.value,
+          estado: estado,
+          observacion: observaciones.value[est.matricula] || '',
+          registradoPorEmail: authStore.usuarioActual?.email || '',
+          fechaRegistro: new Date().toISOString()
+        })
       })
-
-      if (nuevasAsistencias.length === 0) {
-        mostrarNotificacion('No hay asistencias para guardar', 'warning')
-        return
-      }
 
       asistenciasStore.registrarAsistenciasMasivo(nuevasAsistencias)
       

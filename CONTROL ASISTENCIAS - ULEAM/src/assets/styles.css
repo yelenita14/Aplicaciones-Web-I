@@ -514,6 +514,8 @@ body .login-page{
 .data-table td {
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    height: 50px;
 }
 
 .data-table tbody tr:hover {
@@ -1411,6 +1413,7 @@ input[type="radio"]:checked {
 /* Celda centrada */
 .center-cell {
     text-align: center;
+    vertical-align: middle;
 }
 
 /* Input radio personalizado */
@@ -1419,6 +1422,9 @@ input[type="radio"]:checked {
     height: 20px;
     cursor: pointer;
     accent-color: var(--primary-color);
+    margin: 0 auto;
+    line-height: 20px;
+    display: block;
 }
 
 /* Input de observación */
